@@ -1,4 +1,4 @@
-FROM jenkins/ssh-agent:jdk17
+FROM jenkins/ssh-agent:jdk21
 
 USER root
 
