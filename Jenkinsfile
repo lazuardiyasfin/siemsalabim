@@ -17,7 +17,11 @@ pipeline {
                 withSonarQubeEnv(SONAR_SERVER_NAME) {
                     sh """
                         ${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=${PROJECT_KEY} 
+                        -Dsonar.projectKey=${PROJECT_KEY} \
+                        -Dsonar.sources=. \
+                        -Dsonar.tests=apps \
+                        -Dsonar.test.inclusions=**/tests/** \
+                        -Dsonar.exclusions=**/tests/**,**/.venv/**
                     """
                 }
             }
@@ -25,8 +29,17 @@ pipeline {
 
         stage('SonarQube Quality Gate') {
             steps {
-                timeout(time: 1, unit: 'HOURS') {
+                timeout(time: 10, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('DevOps Docker Build Test') {
+            when { changeset "devops/docker/**" }
+            steps {
+                dir('devops/docker') {
+                    sh 'docker compose build'
                 }
             }
         }
