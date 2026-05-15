@@ -4,6 +4,7 @@ pipeline {
     }
 
     environment {
+        PROJECT_KEY = 'siemsalabim'
         SONAR_SERVER_NAME = 'sonarqube-server'
     }
 
@@ -14,7 +15,10 @@ pipeline {
                     scannerHome = tool 'sonarqube-scanner'
                 }
                 withSonarQubeEnv(SONAR_SERVER_NAME) {
-                    sh "${scannerHome}/bin/sonar-scanner"
+                    sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=${PROJECT_KEY} 
+                    """
                 }
             }
         }
