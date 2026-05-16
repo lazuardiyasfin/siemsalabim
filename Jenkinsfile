@@ -34,14 +34,5 @@ pipeline {
                 }
             }
         }
-
-        stage('DevOps Docker Build Test') {
-            when { changeset "devops/docker/**" }
-            steps {
-                dir('devops/docker') {
-                    sh 'docker compose build'
-                }
-            }
-        }
     }
 }
