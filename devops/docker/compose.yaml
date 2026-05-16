@@ -55,6 +55,36 @@ services:
       - postgresql:/var/lib/postgresql
     networks:
       - ${NETWORK_TYPE:-ipv4}
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN}
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/letsencrypt:/var/www/letsencrypt:ro
+    networks:
+      - ${NETWORK_TYPE:-ipv4}
+  certbot:
+    image: nbraun1/certbot:v1.2.0
+    container_name: certbot
+    depends_on:
+      - nginx
+    environment:
+      EMAIL: ${EMAIL}
+      DOMAINS: ${DOMAIN}
+      AUTHENTICATOR: webroot
+      WEBROOT_PATH: /var/www/letsencrypt
+      DEPLOY_HOOK_CMD: "docker kill -s HUP nginx"
+      CRON: "0 0,12 * * *"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/letsencrypt:/var/www/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   jenkins_home:
