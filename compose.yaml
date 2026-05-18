@@ -1,0 +1,16 @@
+services:
+  siem-dashboard:
+    container_name: siem-dashboard-container
+    image: ${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG:-latest}
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+  siem-engine:
+    container_name: siem-engine-container
+    image: ${REGISTRY_USER}/siem-engine:${IMAGE_TAG:-latest}
+    build:
+      context: ./apps/engine
+      dockerfile: Dockerfile
+    restart: unless-stopped

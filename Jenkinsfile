@@ -6,6 +6,7 @@ pipeline {
     environment {
         PROJECT_KEY = 'siemsalabim'
         SONAR_SERVER_NAME = 'sonarqube-server'
+        DOCKER_CREDS_ID = 'ghcr-pat-creds'
     }
 
     stages {
@@ -29,21 +30,21 @@ pipeline {
                 stage('Exporter Tests') {
                     when { changeset "apps/exporter/**" }
                     steps {
-                        sh 'uv run pytest apps/exporter --cov=apps/exporter --cov-report=xml:coverage-exporter.xml'
+                        sh 'COVERAGE_FILE=.coverage.exporter uv run pytest apps/exporter --cov=apps/exporter --cov-report=xml:coverage-exporter.xml'
                     }
                 }
                 
                 stage('Engine Tests') {
                     when { changeset "apps/engine/**" }
                     steps {
-                        sh 'uv run pytest apps/engine --cov=apps/engine --cov-report=xml:coverage-engine.xml'
+                        sh 'COVERAGE_FILE=.coverage.engine uv run pytest apps/engine --cov=apps/engine --cov-report=xml:coverage-engine.xml'
                     }
                 }
 
                 stage('Dashboard Tests') {
                     when { changeset "apps/dashboard/**" }
                     steps {
-                        sh 'uv run pytest apps/dashboard --cov=apps/dashboard --cov-report=xml:coverage-dashboard.xml'
+                        sh 'COVERAGE_FILE=.coverage.dashboard uv run pytest apps/dashboard --cov=apps/dashboard --cov-report=xml:coverage-dashboard.xml'
                     }
                 }
             }
@@ -72,6 +73,55 @@ pipeline {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('App Docker Build') {
+            when {
+                anyOf {
+                    branch 'main'
+                    changeRequest()
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDS_ID, passwordVariable: 'GH_TOKEN', usernameVariable: 'GH_USER')]) {
+                    sh '''
+                        export REGISTRY_USER="ghcr.io/${GH_USER}"
+                        export IMAGE_TAG="v1.0.${BUILD_NUMBER}"
+
+                        docker compose build
+                    '''
+                }
+            }
+        }
+
+        stage('App Docker Push') {
+            when {
+                allOf {
+                    branch 'main'
+                    not { changeRequest() } 
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDS_ID, passwordVariable: 'GH_TOKEN', usernameVariable: 'GH_USER')]) {
+                    sh '''
+                        export DOCKER_CONFIG="${WORKSPACE}/.docker"
+                        export REGISTRY_USER="ghcr.io/${GH_USER}"
+                        export IMAGE_TAG="v1.0.${BUILD_NUMBER}"
+
+                        echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
+                        
+                        docker compose push
+
+                        docker tag "${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG}" "${REGISTRY_USER}/siem-dashboard:latest"
+                        docker tag "${REGISTRY_USER}/siem-engine:${IMAGE_TAG}" "${REGISTRY_USER}/siem-engine:latest"
+                        
+                        docker push "${REGISTRY_USER}/siem-dashboard:latest"
+                        docker push "${REGISTRY_USER}/siem-engine:latest"
+
+                        docker logout ghcr.io
+                    '''
                 }
             }
         }
