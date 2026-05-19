@@ -86,7 +86,7 @@ pipeline {
                             sh """
                                 ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
                                 -Dsonar.projectKey=siemsalabim:exporter \
-                                -Dsonar.projectName="Siem Exporter" \
+                                -Dsonar.projectName="SIEM Exporter" \
                                 -Dsonar.sources=apps/exporter \
                                 -Dsonar.tests=apps/exporter \
                                 -Dsonar.test.inclusions=**/tests/** \
@@ -104,7 +104,7 @@ pipeline {
                             sh """
                                 ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
                                 -Dsonar.projectKey=siemsalabim:engine \
-                                -Dsonar.projectName="Siem Engine" \
+                                -Dsonar.projectName="SIEM Engine" \
                                 -Dsonar.sources=apps/engine \
                                 -Dsonar.tests=apps/engine \
                                 -Dsonar.test.inclusions=**/tests/** \
@@ -122,7 +122,7 @@ pipeline {
                             sh """
                                 ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
                                 -Dsonar.projectKey=siemsalabim:dashboard \
-                                -Dsonar.projectName="Siem Dashboard" \
+                                -Dsonar.projectName="SIEM Dashboard" \
                                 -Dsonar.sources=apps/dashboard \
                                 -Dsonar.tests=apps/dashboard \
                                 -Dsonar.test.inclusions=**/tests/** \
@@ -137,6 +137,14 @@ pipeline {
         }
 
         stage('SonarQube Quality Gate') {
+            when {
+                anyOf {
+                    changeset "apps/exporter/**"
+                    changeset "apps/engine/**"
+                    changeset "apps/dashboard/**"
+                    expression { currentBuild.number == 1 }
+                }
+            }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
