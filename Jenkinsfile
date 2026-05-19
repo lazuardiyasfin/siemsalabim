@@ -24,7 +24,7 @@ pipeline {
 
         stage('Sync') {
             steps {
-                sh 'uv sync --frozen'
+                sh 'uv sync --frozen --all-packages --all-extras'
             }
         }
 
