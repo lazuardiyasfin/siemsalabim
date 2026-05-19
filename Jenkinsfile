@@ -97,6 +97,7 @@ pipeline {
                         }
                     }
                 }
+<<<<<<< HEAD
                 stage('Engine Analysis') {
                     when { anyOf { changeset "apps/engine/**"; expression { currentBuild.number == 1 } } }
                     steps {
@@ -132,6 +133,19 @@ pipeline {
                             """
                         }
                     }
+=======
+                withSonarQubeEnv(SONAR_SERVER_NAME) {
+                    sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=${PROJECT_KEY} \
+                        -Dsonar.sources=. \
+                        -Dsonar.tests=apps \
+                        -Dsonar.test.inclusions=**/tests/** \
+                        -Dsonar.exclusions=**/tests/**,**/.venv/**\
+                        -Dsonar.python.coverage.reportPaths=coverage-engine.xml,coverage-exporter.xml,coverage-dashboard.xml \
+                        -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                    """
+>>>>>>> a28183a (ci: remove xml exclusion)
                 }
             }
         }
