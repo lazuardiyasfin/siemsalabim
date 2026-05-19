@@ -10,6 +10,18 @@ pipeline {
     }
 
     stages {
+        stage('Init') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarqube-scanner'
+                    env.SONAR_SCANNER_HOME = scannerHome
+
+                    def rawVersion = readFile('.python-version').trim()
+                    env.SONAR_PY_VERSION = rawVersion.tokenize('.')[0..1].join('.')
+                }
+            }
+        }
+
         stage('Sync') {
             steps {
                 sh 'uv sync --frozen'
@@ -26,7 +38,7 @@ pipeline {
         }
 
         stage('Test') {
-            parallel {
+            stages {
                 stage('Exporter Tests') {
                     when { 
                         anyOf {
@@ -66,24 +78,60 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                script {
-                    scannerHome = tool 'sonarqube-scanner'
-
-                    def rawVersion = readFile('.python-version').trim()
-                    env.SONAR_PY_VERSION = rawVersion.tokenize('.')[0..1].join('.')
+            stages {
+                stage('Exporter Analysis') {
+                    when { anyOf { changeset "apps/exporter/**"; expression { currentBuild.number == 1 } } }
+                    steps {
+                        withSonarQubeEnv(SONAR_SERVER_NAME) {
+                            sh """
+                                ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                                -Dsonar.projectKey=siemsalabim:exporter \
+                                -Dsonar.projectName="Siem Exporter" \
+                                -Dsonar.sources=apps/exporter \
+                                -Dsonar.tests=apps/exporter \
+                                -Dsonar.test.inclusions=**/tests/** \
+                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.python.coverage.reportPaths=coverage-exporter.xml \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                            """
+                        }
+                    }
                 }
-                withSonarQubeEnv(SONAR_SERVER_NAME) {
-                    sh """
-                        ${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=${PROJECT_KEY} \
-                        -Dsonar.sources=. \
-                        -Dsonar.tests=apps \
-                        -Dsonar.test.inclusions=**/tests/** \
-                        -Dsonar.exclusions=**/tests/**,**/.venv/** \
-                        -Dsonar.python.coverage.reportPaths=coverage-engine.xml,coverage-exporter.xml,coverage-dashboard.xml \
-                        -Dsonar.python.version=${env.SONAR_PY_VERSION}
-                    """
+                stage('Engine Analysis') {
+                    when { anyOf { changeset "apps/engine/**"; expression { currentBuild.number == 1 } } }
+                    steps {
+                        withSonarQubeEnv(SONAR_SERVER_NAME) {
+                            sh """
+                                ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                                -Dsonar.projectKey=siemsalabim:engine \
+                                -Dsonar.projectName="Siem Engine" \
+                                -Dsonar.sources=apps/engine \
+                                -Dsonar.tests=apps/engine \
+                                -Dsonar.test.inclusions=**/tests/** \
+                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.python.coverage.reportPaths=coverage-engine.xml \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                            """
+                        }
+                    }
+                }
+                stage('Dashboard Analysis') {
+                    when { anyOf { changeset "apps/dashboard/**"; expression { currentBuild.number == 1 } } }
+                    steps {
+                        withSonarQubeEnv(SONAR_SERVER_NAME) {
+                            sh """
+                                ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                                -Dsonar.projectKey=siemsalabim:dashboard \
+                                -Dsonar.projectName="Siem Dashboard" \
+                                -Dsonar.sources=apps/dashboard \
+                                -Dsonar.tests=apps/dashboard \
+                                -Dsonar.test.inclusions=**/tests/** \
+                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.python.coverage.reportPaths=coverage-dashboard.xml \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                            """
+                        }
+                    }
                 }
             }
         }
