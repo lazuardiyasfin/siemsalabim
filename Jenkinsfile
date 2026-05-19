@@ -80,7 +80,7 @@ pipeline {
                         -Dsonar.sources=. \
                         -Dsonar.tests=apps \
                         -Dsonar.test.inclusions=**/tests/** \
-                        -Dsonar.exclusions=**/tests/**,**/.venv/**,*.xml \
+                        -Dsonar.exclusions=**/tests/**,**/.venv/** \
                         -Dsonar.python.coverage.reportPaths=coverage-engine.xml,coverage-exporter.xml,coverage-dashboard.xml \
                         -Dsonar.python.version=${env.SONAR_PY_VERSION}
                     """
