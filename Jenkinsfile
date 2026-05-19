@@ -54,6 +54,9 @@ pipeline {
             steps {
                 script {
                     scannerHome = tool 'sonarqube-scanner'
+
+                    def rawVersion = readFile('.python-version').trim()
+                    env.SONAR_PY_VERSION = rawVersion.tokenize('.')[0..1].join('.')
                 }
                 withSonarQubeEnv(SONAR_SERVER_NAME) {
                     sh """
@@ -62,8 +65,9 @@ pipeline {
                         -Dsonar.sources=. \
                         -Dsonar.tests=apps \
                         -Dsonar.test.inclusions=**/tests/** \
-                        -Dsonar.exclusions=**/tests/**,**/.venv/** \
-                        -Dsonar.python.coverage.reportPaths=coverage-engine.xml,coverage-exporter.xml,coverage-dashboard.xml
+                        -Dsonar.exclusions=**/tests/**,**/.venv/**,*.xml \
+                        -Dsonar.python.coverage.reportPaths=coverage-engine.xml,coverage-exporter.xml,coverage-dashboard.xml \
+                        -Dsonar.python.version=${env.SONAR_PY_VERSION}
                     """
                 }
             }
