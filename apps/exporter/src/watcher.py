@@ -25,10 +25,10 @@ class _LogFileHandler(FileSystemEventHandler):
         self._loop = loop
         self._last_event: dict[str, float] = {}
 
-    def on_modified(self, event: FileModifiedEvent) -> None: 
+    def on_modified(self, event: FileModifiedEvent) -> None:
         if event.is_directory:
             return
-        
+
         src = os.path.realpath(str(event.src_path))
 
         if src not in self._watched:

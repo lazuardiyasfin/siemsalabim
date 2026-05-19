@@ -3,6 +3,7 @@ from pathlib import Path
 
 from src.state import StateManager
 
+
 class TestStateManager:
     def test_new_file_returns_zero_offset(self, tmp_path: Path) -> None:
         """First access to an unknown file returns offset 0."""

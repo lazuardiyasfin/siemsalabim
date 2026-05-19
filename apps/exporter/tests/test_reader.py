@@ -3,6 +3,7 @@ from pathlib import Path
 from src.reader import read_new_lines
 from src.state import StateManager
 
+
 class TestReadNewLines:
     def test_reads_all_lines_from_start(self, tmp_path: Path) -> None:
         """First read returns all complete lines."""

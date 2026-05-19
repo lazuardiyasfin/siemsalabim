@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from src.config import ExporterConfig
 
+
 class TestExporterConfig:
     def test_loads_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Config loads all required fields from SIEM_ prefixed env vars."""

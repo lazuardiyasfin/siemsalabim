@@ -9,13 +9,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FileState:
-
     offset: int = 0
     inode: int = 0
 
 
 class StateManager:
-
     def __init__(self, state_file_path: Path) -> None:
         self._path = state_file_path
         self._states: dict[str, FileState] = {}
