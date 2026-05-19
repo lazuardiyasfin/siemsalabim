@@ -31,7 +31,7 @@ pipeline {
                     when { 
                         anyOf {
                             changeset "apps/exporter/**"
-                            currentBuild.number == 1
+                            expression { currentBuild.number == 1 }
                         }
                     }
                     steps {
@@ -43,7 +43,7 @@ pipeline {
                     when { 
                         anyOf {
                             changeset "apps/engine/**" 
-                            currentBuild.number == 1
+                            expression { currentBuild.number == 1 }
                         }
                     }
                     steps {
@@ -55,7 +55,7 @@ pipeline {
                     when { 
                         anyOf {
                             changeset "apps/dashboard/**"
-                            currentBuild.number == 1
+                            expression { currentBuild.number == 1 }
                         }
                     }
                     steps {
