@@ -10,9 +10,21 @@ pipeline {
     }
 
     stages {
+        stage('Init') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarqube-scanner'
+                    env.SONAR_SCANNER_HOME = scannerHome
+
+                    def rawVersion = readFile('.python-version').trim()
+                    env.SONAR_PY_VERSION = rawVersion.tokenize('.')[0..1].join('.')
+                }
+            }
+        }
+
         stage('Sync') {
             steps {
-                sh 'uv sync --frozen'
+                sh 'uv sync --frozen --all-packages --all-extras'
             }
         }
 
@@ -26,23 +38,38 @@ pipeline {
         }
 
         stage('Test') {
-            parallel {
+            stages {
                 stage('Exporter Tests') {
-                    when { changeset "apps/exporter/**" }
+                    when { 
+                        anyOf {
+                            changeset "apps/exporter/**"
+                            expression { currentBuild.number == 1 }
+                        }
+                    }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.exporter uv run pytest apps/exporter --cov=apps/exporter --cov-report=xml:coverage-exporter.xml'
                     }
                 }
                 
                 stage('Engine Tests') {
-                    when { changeset "apps/engine/**" }
+                    when { 
+                        anyOf {
+                            changeset "apps/engine/**" 
+                            expression { currentBuild.number == 1 }
+                        }
+                    }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.engine uv run pytest apps/engine --cov=apps/engine --cov-report=xml:coverage-engine.xml'
                     }
                 }
 
                 stage('Dashboard Tests') {
-                    when { changeset "apps/dashboard/**" }
+                    when { 
+                        anyOf {
+                            changeset "apps/dashboard/**"
+                            expression { currentBuild.number == 1 }
+                        }
+                    }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.dashboard uv run pytest apps/dashboard --cov=apps/dashboard --cov-report=xml:coverage-dashboard.xml'
                     }
@@ -51,29 +78,73 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                script {
-                    scannerHome = tool 'sonarqube-scanner'
-
-                    def rawVersion = readFile('.python-version').trim()
-                    env.SONAR_PY_VERSION = rawVersion.tokenize('.')[0..1].join('.')
+            stages {
+                stage('Exporter Analysis') {
+                    when { anyOf { changeset "apps/exporter/**"; expression { currentBuild.number == 1 } } }
+                    steps {
+                        withSonarQubeEnv(SONAR_SERVER_NAME) {
+                            sh """
+                                ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                                -Dsonar.projectKey=siemsalabim:exporter \
+                                -Dsonar.projectName="SIEM Exporter" \
+                                -Dsonar.sources=apps/exporter \
+                                -Dsonar.tests=apps/exporter \
+                                -Dsonar.test.inclusions=**/tests/** \
+                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.python.coverage.reportPaths=coverage-exporter.xml \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                            """
+                        }
+                    }
                 }
-                withSonarQubeEnv(SONAR_SERVER_NAME) {
-                    sh """
-                        ${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=${PROJECT_KEY} \
-                        -Dsonar.sources=. \
-                        -Dsonar.tests=apps \
-                        -Dsonar.test.inclusions=**/tests/** \
-                        -Dsonar.exclusions=**/tests/**,**/.venv/**,*.xml \
-                        -Dsonar.python.coverage.reportPaths=coverage-engine.xml,coverage-exporter.xml,coverage-dashboard.xml \
-                        -Dsonar.python.version=${env.SONAR_PY_VERSION}
-                    """
+                stage('Engine Analysis') {
+                    when { anyOf { changeset "apps/engine/**"; expression { currentBuild.number == 1 } } }
+                    steps {
+                        withSonarQubeEnv(SONAR_SERVER_NAME) {
+                            sh """
+                                ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                                -Dsonar.projectKey=siemsalabim:engine \
+                                -Dsonar.projectName="SIEM Engine" \
+                                -Dsonar.sources=apps/engine \
+                                -Dsonar.tests=apps/engine \
+                                -Dsonar.test.inclusions=**/tests/** \
+                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.python.coverage.reportPaths=coverage-engine.xml \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                            """
+                        }
+                    }
+                }
+                stage('Dashboard Analysis') {
+                    when { anyOf { changeset "apps/dashboard/**"; expression { currentBuild.number == 1 } } }
+                    steps {
+                        withSonarQubeEnv(SONAR_SERVER_NAME) {
+                            sh """
+                                ${env.SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                                -Dsonar.projectKey=siemsalabim:dashboard \
+                                -Dsonar.projectName="SIEM Dashboard" \
+                                -Dsonar.sources=apps/dashboard \
+                                -Dsonar.tests=apps/dashboard \
+                                -Dsonar.test.inclusions=**/tests/** \
+                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.python.coverage.reportPaths=coverage-dashboard.xml \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                            """
+                        }
+                    }
                 }
             }
         }
 
         stage('SonarQube Quality Gate') {
+            when {
+                anyOf {
+                    changeset "apps/exporter/**"
+                    changeset "apps/engine/**"
+                    changeset "apps/dashboard/**"
+                    expression { currentBuild.number == 1 }
+                }
+            }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
