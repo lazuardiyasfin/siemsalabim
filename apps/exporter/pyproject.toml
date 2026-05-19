@@ -1,7 +1,12 @@
 [project]
 name = "exporter"
 version = "0.1.0"
-description = "Add your description here"
+description = "SIEM Log Exporter"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.9.0",
+    "watchdog>=6.0.0",
+    "websockets>=15.0",
+]
