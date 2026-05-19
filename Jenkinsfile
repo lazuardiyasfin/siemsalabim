@@ -28,21 +28,36 @@ pipeline {
         stage('Test') {
             parallel {
                 stage('Exporter Tests') {
-                    when { changeset "apps/exporter/**" }
+                    when { 
+                        anyOf {
+                            changeset "apps/exporter/**"
+                            currentBuild.number == 1
+                        }
+                    }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.exporter uv run pytest apps/exporter --cov=apps/exporter --cov-report=xml:coverage-exporter.xml'
                     }
                 }
                 
                 stage('Engine Tests') {
-                    when { changeset "apps/engine/**" }
+                    when { 
+                        anyOf {
+                            changeset "apps/engine/**" 
+                            currentBuild.number == 1
+                        }
+                    }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.engine uv run pytest apps/engine --cov=apps/engine --cov-report=xml:coverage-engine.xml'
                     }
                 }
 
                 stage('Dashboard Tests') {
-                    when { changeset "apps/dashboard/**" }
+                    when { 
+                        anyOf {
+                            changeset "apps/dashboard/**"
+                            currentBuild.number == 1
+                        }
+                    }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.dashboard uv run pytest apps/dashboard --cov=apps/dashboard --cov-report=xml:coverage-dashboard.xml'
                     }
