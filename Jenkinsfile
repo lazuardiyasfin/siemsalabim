@@ -38,7 +38,7 @@ pipeline {
         }
 
         stage('Test') {
-            stages {
+            parallel {
                 stage('Exporter Tests') {
                     when { 
                         anyOf {
@@ -78,7 +78,7 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            stages {
+            parallel {
                 stage('Exporter Analysis') {
                     when { anyOf { changeset "apps/exporter/**"; expression { currentBuild.number == 1 } } }
                     steps {
