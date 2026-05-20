@@ -1,3 +1,5 @@
+import { createIcons, Gauge, FileCog, ShieldAlert } from 'lucide';
+
 export function initDashboard() {
     document.querySelector('#app').innerHTML = `
     <div class="dashboard-container">
@@ -10,14 +12,14 @@ export function initDashboard() {
 
         <nav>
             <ul>
-                <li><a href=""><div class="nav-icon"></div></a></li>
-                <li><a href=""><div class="nav-icon"></div></a></li>
-                <li><a href=""><div class="nav-icon"></div></a></li>
+                <li><a href=""><i data-lucide="gauge" class="nav-icon"></i></a></li>
+                <li><a href=""><i data-lucide="file-cog" class="nav-icon"></i></a></li>
+                <li><a href=""><i data-lucide="shield-alert" class="nav-icon"></i></a></li>
             </ul>
         </nav> 
 
         <main>
-            <header class="main-header">
+            <div class="dashboard-header">
                 <div class="header-title">
                     <h1>Security Overview</h1>
                 </div>
@@ -35,41 +37,48 @@ export function initDashboard() {
                     
                     <button>Refresh</button>
                 </menu>
-            </header>
+            </div>
 
             <div class="dashboard-grid">
-                <section class="stat-card">
+                <section class="stat-card col-span-2">
                     <h3 class="stat-title">Access events</h3>
                     <div class="stat-value">498</div>
                     <span class="stat-label">Count</span>
                 </section>
 
-                <section class="stat-card">
+                <section class="stat-card col-span-2">
                     <h3 class="stat-title">Threat events</h3>
                     <div class="stat-value">1</div>
                     <span class="stat-label">Count</span>
                 </section>
 
-                <section class="stat-card">
+                <section class="stat-card col-span-2">
                     <h3 class="stat-title">Audit events</h3>
                     <div class="stat-value">394</div>
                     <span class="stat-label">Count</span>
                 </section>
                 
-                <section class="stat-card">
+                <section class="stat-card col-span-2">
                     <h3 class="stat-title">Endpoint events</h3>
                     <div class="stat-value">0</div>
                     <span class="stat-label">Count</span>
+                </section> 
+                
+                <section class="widget-card col-span-6 row-span-2">
+                    <h3 class="widget-title">Attacker origin</h3>
+                    <div class="map-wrapper">
+                        <div id="map-container"></div>
+                    </div>
                 </section>                
 
-                <section class="widget-card">
+                <section class="widget-card col-span-8">
                     <h3 class="widget-title">Events over time</h3>
                     <div class="chart-wrapper">
                         <canvas id="events-over-time"></canvas>
                     </div>
                 </section>
 
-                <section class="widget-card">
+                <section class="widget-card col-span-8 row-span-2">
                     <h3 class="widget-title">Summary of events</h3>
                     <div class="table-wrapper">
                         <table>
@@ -83,12 +92,12 @@ export function initDashboard() {
                             <tbody>
                                 <tr>
                                     <td>AWS CloudTrail - An access key was used...</td>
-                                    <td><span class="badge badge-medium">MEDIUM</span></td>
+                                    <td>MEDIUM</td>
                                     <td>65</td>
                                 </tr>
                                 <tr>
                                     <td>Log4j - potential RCE exploit</td>
-                                    <td><span class="badge badge-high">HIGH</span></td>
+                                    <td>HIGH</td>
                                     <td>1</td>
                                 </tr>
                             </tbody>
@@ -96,14 +105,7 @@ export function initDashboard() {
                     </div>
                 </section>
                 
-                <section class="widget-card">
-                    <h3 class="widget-title">Attacker origin</h3>
-                    <div class="map-wrapper">
-                        <div id="map-container"></div>
-                    </div>
-                </section>
-                
-                <section class="widget-card">
+                <section class="widget-card col-span-6 row-span-2">
                     <h3 class="widget-title">Log types volume breakdown</h3>
                     <div class="chart-wrapper">
                         <canvas id="log-types-breakdown"></canvas>
@@ -113,5 +115,13 @@ export function initDashboard() {
         </main>
     </div>
     `;
+
+    createIcons({
+        icons: {
+            Gauge,
+            FileCog,
+            ShieldAlert
+        }
+    });
 }
 

@@ -12,6 +12,7 @@
     "vite": "^8.0.12"
   },
   "dependencies": {
+    "lucide": "^1.16.0",
     "modern-normalize": "^3.0.1"
   }
 }
