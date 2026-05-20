@@ -4,6 +4,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .config import EngineConfig
 from .models import RawLog
+from .parser import parse
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +36,23 @@ async def ingest_handler(websocket: WebSocket, config: EngineConfig) -> None:
             data = await websocket.receive_json()
             try:
                 raw_log = RawLog(**data)
-                logger.info(
-                    "[%s] %s:%s — %s",
-                    raw_log.exporter_id,
-                    raw_log.host,
-                    raw_log.path,
-                    raw_log.line[:120],
-                )
+                event = parse(raw_log)
+                if event and event.decoded:
+                    logger.info(
+                        "[%s] %s → %s %s",
+                        raw_log.exporter_id,
+                        event.program,
+                        event.decoded.get("action", ""),
+                        {k: v for k, v in event.decoded.items() if k != "action"},
+                    )
+                else:
+                    logger.info(
+                        "[%s] %s:%s — %s",
+                        raw_log.exporter_id,
+                        raw_log.host,
+                        raw_log.path,
+                        raw_log.line[:120],
+                    )
             except Exception as exc:
                 logger.warning("Malformed message from %s: %s", client, exc)
                 await websocket.close(code=CLOSE_MALFORMED, reason="Malformed JSON")
