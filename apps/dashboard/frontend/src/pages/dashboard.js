@@ -1,11 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Overview - Siemsalabim</title>
-</head>
-<body>
+export function initDashboard() {
+    document.querySelector('#app').innerHTML = `
     <div class="dashboard-container">
         <header>
             <div class="logo">Siemsalabim</div>
@@ -118,5 +112,6 @@
             </div>
         </main>
     </div>
-</body>
-</html>
+    `;
+}
+
