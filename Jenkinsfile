@@ -158,7 +158,7 @@ pipeline {
                                 -Dsonar.sources=apps/dashboard \
                                 -Dsonar.tests=apps/dashboard \
                                 -Dsonar.test.inclusions=**/tests/**,**/testing/** \
-                                -Dsonar.exclusions=**/tests/**,**/testing/**,**/*.spec.js,**/*.test.js,**/coverage/** \
+                                -Dsonar.exclusions=**/tests/**,**/testing/**,**/*.spec.js,**/*.test.js,**/coverage/**/* \
                                 -Dsonar.python.coverage.reportPaths=coverage-dashboard.xml \
                                 -Dsonar.javascript.lcov.reportPaths=apps/dashboard/frontend/coverage/lcov.info \
                                 -Dsonar.python.version=${env.SONAR_PY_VERSION} \
