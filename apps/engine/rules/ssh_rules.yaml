@@ -1,0 +1,51 @@
+rules:
+  - id: ssh_invalid_user
+    name: SSH Invalid User Attempt
+    severity: medium
+    program: sshd
+    description: "SSH login attempt with invalid user '{user}' from {src_ip}"
+    conditions:
+      - field: decoded.action
+        value: invalid_user
+
+  - id: ssh_failed_password
+    name: SSH Failed Password
+    severity: medium
+    program: sshd
+    description: "SSH failed password for user '{user}' from {src_ip}"
+    conditions:
+      - field: decoded.action
+        value: failed
+
+  - id: ssh_brute_force
+    name: SSH Brute Force Detected
+    severity: critical
+    program: sshd
+    description: "Multiple failed SSH attempts from {src_ip}"
+    conditions:
+      - field: decoded.action
+        value:
+          - invalid_user
+          - failed
+    frequency:
+      count: 5
+      window_seconds: 120
+      group_by: decoded.src_ip
+
+  - id: ssh_accepted_login
+    name: SSH Successful Login
+    severity: low
+    program: sshd
+    description: "SSH login accepted for user '{user}' from {src_ip} via {method}"
+    conditions:
+      - field: decoded.action
+        value: accepted
+
+  - id: ssh_connection_reset
+    name: SSH Connection Reset During Auth
+    severity: medium
+    program: sshd
+    description: "SSH connection reset by user '{user}' from {src_ip}"
+    conditions:
+      - field: decoded.action
+        value: connection_reset
