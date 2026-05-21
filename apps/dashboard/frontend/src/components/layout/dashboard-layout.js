@@ -42,25 +42,25 @@ export function initDashboard() {
             <div class="dashboard-grid">
                 <section class="stat-card col-span-2">
                     <h3 class="stat-title">Access events</h3>
-                    <div class="stat-value">498</div>
+                    <div class="stat-value" id="count-access">n/a</div>
                     <span class="stat-label">Count</span>
                 </section>
 
                 <section class="stat-card col-span-2">
                     <h3 class="stat-title">Threat events</h3>
-                    <div class="stat-value">1</div>
+                    <div class="stat-value" id="count-threat">n/a</div>
                     <span class="stat-label">Count</span>
                 </section>
 
                 <section class="stat-card col-span-2">
                     <h3 class="stat-title">Audit events</h3>
-                    <div class="stat-value">394</div>
+                    <div class="stat-value" id="count-audit">n/a</div>
                     <span class="stat-label">Count</span>
                 </section>
                 
                 <section class="stat-card col-span-2">
                     <h3 class="stat-title">Endpoint events</h3>
-                    <div class="stat-value">0</div>
+                    <div class="stat-value" id="count-endpoint">n/a</div>
                     <span class="stat-label">Count</span>
                 </section> 
                 
@@ -89,18 +89,7 @@ export function initDashboard() {
                                     <th>Events</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>AWS CloudTrail - An access key was used...</td>
-                                    <td>MEDIUM</td>
-                                    <td>65</td>
-                                </tr>
-                                <tr>
-                                    <td>Log4j - potential RCE exploit</td>
-                                    <td>HIGH</td>
-                                    <td>1</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="summary-tbody"></tbody>
                         </table>
                     </div>
                 </section>

@@ -1,13 +1,15 @@
 import Chart from 'chart.js/auto';
 
-export function initDashboardCharts(data) {
+export function initDashboardWidgets(data) {
     if (!data) {
         console.error('Initialization failed: No data provided.');
         return;
     }
 
+    initStats(data.stats);
     initEventsOverTimeChart(data.eventsOverTime);
     initLogTypesChart(data.logTypesVolume);
+    initSummaryTable(data.summaryOfEvents);
 }
 
 let eventsOverTimeChart = null;
@@ -85,4 +87,26 @@ function initLogTypesChart(logVolumesData) {
             }
         }
     });
+}
+
+function initStats(statsData) {
+    document.getElementById('count-access').textContent = statsData.accessEvents;
+    document.getElementById('count-threat').textContent = statsData.threatEvents;
+    document.getElementById('count-audit').textContent = statsData.auditEvents;
+    document.getElementById('count-endpoint').textContent = statsData.endpointEvents;
+}
+
+function initSummaryTable(alertsData) {
+    const summaryTBody = document.getElementById('summary-tbody');
+    if (!summaryTBody) {
+        return;
+    }
+    
+    summaryTBody.innerHTML = alertsData.map(row => `
+        <tr>
+            <td>${row.rule}</td>
+            <td>${row.severity}</td>
+            <td>${row.events}</td>
+        </tr>    
+    `).join('');
 }
