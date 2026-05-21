@@ -4,7 +4,7 @@ requires-python = ">=3.12"
 
 [manifest]
 members = [
-    "dashboard",
+    "dashboard-backend",
     "engine",
     "exporter",
     "siemsalabim",
@@ -147,9 +147,9 @@ wheels = [
 ]
 
 [[package]]
-name = "dashboard"
+name = "dashboard-backend"
 version = "0.1.0"
-source = { virtual = "apps/dashboard" }
+source = { virtual = "apps/dashboard/backend" }
 
 [[package]]
 name = "engine"
