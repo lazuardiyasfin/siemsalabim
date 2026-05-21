@@ -208,3 +208,9 @@ td {
   border-bottom: 2px solid var(--color-border-table);
   color: var(--color-text-dark);
 }
+
+/* Map styles */
+#map-container {
+  height: 60vh;
+  width: 100%;
+}
