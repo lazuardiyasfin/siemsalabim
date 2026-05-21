@@ -46,7 +46,7 @@ async def ws_dashboard(websocket: WebSocket) -> None:
     """WebSocket endpoint for dashboards to receive real-time events."""
     await broadcaster.connect(websocket)
     logger.info("Dashboard subscribed to events")
-    
+
     try:
         while True:
             await websocket.receive_text()

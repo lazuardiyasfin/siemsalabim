@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 # WebSocket client for receiving real-time events from the engine
 class EngineClient:
-
     def __init__(self, engine_url: str, on_event: Optional[Callable] = None):
         self.engine_url = engine_url
         self.on_event = on_event
@@ -56,9 +55,9 @@ class EngineClient:
             try:
                 await self.connect()
                 return
-            except Exception as exc:
+            except Exception:
                 if attempt < max_retries - 1:
-                    wait_time = delay * (2 ** attempt)
+                    wait_time = delay * (2**attempt)
                     logger.warning(
                         "Reconnect attempt %d failed. Retrying in %d seconds...",
                         attempt + 1,

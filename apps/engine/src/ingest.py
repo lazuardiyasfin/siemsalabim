@@ -51,10 +51,12 @@ async def ingest_handler(
                         {k: v for k, v in event.decoded.items() if k != "action"},
                     )
                     if broadcaster:
-                        await broadcaster.broadcast({
-                            "type": "event",
-                            "data": event.model_dump(),
-                        })
+                        await broadcaster.broadcast(
+                            {
+                                "type": "event",
+                                "data": event.model_dump(),
+                            }
+                        )
                 else:
                     logger.info(
                         "[%s] %s:%s — %s",

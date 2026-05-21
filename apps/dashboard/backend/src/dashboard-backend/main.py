@@ -25,14 +25,14 @@ connected_frontends: Set[WebSocket] = set()
 async def broadcast_to_frontends(event: dict) -> None:
     """Broadcast event from engine to all connected frontends."""
     disconnected = set()
-    
+
     for websocket in connected_frontends:
         try:
             await websocket.send_json(event)
         except Exception as exc:
             logger.warning("Failed to send event to frontend: %s", exc)
             disconnected.add(websocket)
-    
+
     for websocket in disconnected:
         connected_frontends.discard(websocket)
 
@@ -43,23 +43,23 @@ async def lifespan(app: FastAPI):
     global engine_client
 
     logger.info("Starting dashboard backend...")
-    
+
     async def on_engine_event(event: dict) -> None:
         """Handle event from engine."""
         await broadcast_to_frontends(event)
 
     engine_client = EngineClient(config.engine_url, on_event=on_engine_event)
     engine_task = asyncio.create_task(engine_client.reconnect(max_retries=5))
-    
+
     yield
-    
+
     logger.info("Shutting down dashboard backend...")
     engine_task.cancel()
     try:
         await engine_task
     except asyncio.CancelledError:
         pass
-    
+
     if engine_client:
         await engine_client.disconnect()
 
@@ -92,13 +92,15 @@ async def ws_events(websocket: WebSocket) -> None:
     await websocket.accept()
     connected_frontends.add(websocket)
     logger.info("Frontend connected. Total frontends: %d", len(connected_frontends))
-    
+
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
         connected_frontends.discard(websocket)
-        logger.info("Frontend disconnected. Total frontends: %d", len(connected_frontends))
+        logger.info(
+            "Frontend disconnected. Total frontends: %d", len(connected_frontends)
+        )
 
 
 if __name__ == "__main__":

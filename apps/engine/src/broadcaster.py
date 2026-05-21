@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 # Manages WebSocket connections and broadcasts events to all connected dashboards
 class EventBroadcaster:
-
     def __init__(self):
         """Initialize the broadcaster."""
         self.active_connections: Set[WebSocket] = set()
@@ -18,24 +17,29 @@ class EventBroadcaster:
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections.add(websocket)
-        logger.info("Dashboard connected. Total connections: %d", len(self.active_connections))
+        logger.info(
+            "Dashboard connected. Total connections: %d", len(self.active_connections)
+        )
 
     # Unregister a dashboard connection
     def disconnect(self, websocket: WebSocket) -> None:
         self.active_connections.discard(websocket)
-        logger.info("Dashboard disconnected. Total connections: %d", len(self.active_connections))
+        logger.info(
+            "Dashboard disconnected. Total connections: %d",
+            len(self.active_connections),
+        )
 
     # Send a message to all connected dashboards
     async def broadcast(self, message: dict) -> None:
         disconnected = set()
-        
+
         for websocket in self.active_connections:
             try:
                 await websocket.send_json(message)
             except Exception as exc:
                 logger.warning("Failed to send to dashboard: %s", exc)
                 disconnected.add(websocket)
-        
+
         for websocket in disconnected:
             self.disconnect(websocket)
 
