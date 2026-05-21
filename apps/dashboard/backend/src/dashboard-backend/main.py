@@ -58,10 +58,10 @@ async def lifespan(app: FastAPI):
     try:
         await engine_task
     except asyncio.CancelledError:
-        pass
-
-    if engine_client:
-        await engine_client.disconnect()
+        raise
+    finally:
+        if engine_client:
+            await engine_client.disconnect()
 
 
 app = FastAPI(
