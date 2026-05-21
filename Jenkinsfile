@@ -22,24 +22,24 @@ pipeline {
             }
         }
 
-        stage('Sync') {
-            steps {
-                sh 'uv sync --frozen --all-packages --all-extras'
-            }
-        }
-
-        stage('Lint and Format') {
-            steps {
-                sh '''
-                    uv run ruff check .
-                    uv run ruff format --check .
-                '''
-            }
-        }
-
-        stage('Test') {
+        stage('Python Checks') {
             stages {
-                stage('Exporter Tests') {
+                stage('Sync') {
+                    steps {
+                        sh 'uv sync --frozen --all-packages --all-extras'
+                    }
+                }
+
+                stage('Lint and Format') {
+                    steps {
+                        sh '''
+                            uv run ruff check .
+                            uv run ruff format --check .
+                        '''
+                    }
+                }
+
+                stage('Test Exporter') {
                     when { 
                         anyOf {
                             changeset "apps/exporter/**"
@@ -51,7 +51,7 @@ pipeline {
                     }
                 }
                 
-                stage('Engine Tests') {
+                stage('Test Engine') {
                     when { 
                         anyOf {
                             changeset "apps/engine/**" 
@@ -63,7 +63,7 @@ pipeline {
                     }
                 }
 
-                stage('Dashboard Tests') {
+                stage('Test Dashboard') {
                     when { 
                         anyOf {
                             changeset "apps/dashboard/**"
@@ -72,6 +72,38 @@ pipeline {
                     }
                     steps {
                         sh 'COVERAGE_FILE=.coverage.dashboard uv run pytest apps/dashboard --cov=apps/dashboard --cov-report=xml:coverage-dashboard.xml'
+                    }
+                }
+            }
+        }
+
+        stage('JavaScript Checks') {
+            when {
+                anyOf {
+                    changeset "apps/dashboard/frontend/**"
+                    expression { currentBuild.number == 1 }
+                }
+            }
+            stages {
+                stage('Sync') {
+                    steps {
+                        sh '''
+                            cd apps/dashboard/frontend
+                            npm ci
+                        '''
+                    }
+                }
+                stage('Lint') {
+                    steps {
+                        sh 'cd apps/dashboard/frontend && npm run lint'
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd apps/dashboard/frontend
+                            npx vitest run --coverage.enabled --coverage.reporter=lcov
+                        '''
                     }
                 }
             }
@@ -125,10 +157,21 @@ pipeline {
                                 -Dsonar.projectName="SIEM Dashboard" \
                                 -Dsonar.sources=apps/dashboard \
                                 -Dsonar.tests=apps/dashboard \
-                                -Dsonar.test.inclusions=**/tests/** \
-                                -Dsonar.exclusions=**/tests/** \
+                                -Dsonar.test.inclusions=**/testing/** \
+                                -Dsonar.exclusions=**/testing/**,**/*.spec.js,**/*.test.js \
                                 -Dsonar.python.coverage.reportPaths=coverage-dashboard.xml \
-                                -Dsonar.python.version=${env.SONAR_PY_VERSION}
+                                -Dsonar.javascript.lcov.reportPaths=apps/dashboard/frontend/coverage/lcov.info \
+                                -Dsonar.python.version=${env.SONAR_PY_VERSION} \
+                                -Dsonar.coverage.exclusions="\
+                                    apps/dashboard/**/assets/**/*,\
+                                    apps/dashboard/**/components/**/*,\
+                                    apps/dashboard/frontend/src/assets/**/*,\
+                                    apps/dashboard/frontend/src/components/**/*,\
+                                    apps/dashboard/frontend/src/config/**/*,\
+                                    apps/dashboard/frontend/src/main.js,\
+                                    apps/dashboard/frontend/src/app/router.js,\
+                                    apps/dashboard/frontend/src/app/routes.js,\
+                                    apps/dashboard/frontend/src/testing/**/*"
                             """
                         }
                     }
