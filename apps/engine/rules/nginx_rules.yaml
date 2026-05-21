@@ -1,0 +1,31 @@
+rules:
+  - id: nginx_path_traversal
+    name: Path Traversal Attempt
+    severity: high
+    program: nginx
+    description: "Path traversal attempt from {client_ip} to {path}"
+    conditions:
+      - field: decoded.status
+        value: "400"
+
+  - id: nginx_scanner_404
+    name: Vulnerability Scanner Detected
+    severity: medium
+    program: nginx
+    description: "Scanner probe from {client_ip} hitting {path}"
+    conditions:
+      - field: decoded.status
+        value: "404"
+    frequency:
+      count: 10
+      window_seconds: 60
+      group_by: decoded.client_ip
+
+  - id: nginx_shodan
+    name: Shodan Scanner Detected
+    severity: low
+    program: nginx
+    description: "Shodan scanner probe from {client_ip}"
+    conditions:
+      - field: decoded.user_agent
+        value: "Shodan-Pull/1.0"
