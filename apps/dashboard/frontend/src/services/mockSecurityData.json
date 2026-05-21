@@ -1,0 +1,41 @@
+{
+  "stats": {
+    "accessEvents": 498,
+    "threatEvents": 1,
+    "auditEvents": 394,
+    "endpointEvents": 0
+  },
+  "eventsOverTime": [
+    { "timestamp": "2026-05-20T15:00:00Z", "count": 12 },
+    { "timestamp": "2026-05-20T18:00:00Z", "count": 8 },
+    { "timestamp": "2026-05-20T21:00:00Z", "count": 9 },
+    { "timestamp": "2026-05-21T00:00:00Z", "count": 10 },
+    { "timestamp": "2026-05-21T03:00:00Z", "count": 7 },
+    { "timestamp": "2026-05-21T06:00:00Z", "count": 8 },
+    { "timestamp": "2026-05-21T09:00:00Z", "count": 11 },
+    { "timestamp": "2026-05-21T12:00:00Z", "count": 15 },
+    { "timestamp": "2026-05-21T13:00:00Z", "count": 92 },
+    { "timestamp": "2026-05-21T14:00:00Z", "count": 45 }
+  ],
+  "summaryOfEvents": [
+    { "rule": "AWS CloudTrail - An access key was used by more than one AWS application", "severity": "MEDIUM", "events": 65 },
+    { "rule": "AWS CloudTrail - An RDS snapshot was created", "severity": "MEDIUM", "events": 9 },
+    { "rule": "AWS CloudTrail - An RDS snapshot was deleted", "severity": "MEDIUM", "events": 6 },
+    { "rule": "AWS CloudTrail - ELB target group health checks were modified", "severity": "MEDIUM", "events": 3 },
+    { "rule": "AWS CloudTrail - Targets were registered to an ELB target group", "severity": "MEDIUM", "events": 24 },
+    { "rule": "CVE-2022-4034: Pwnkit Exploitation", "severity": "HIGH", "events": 286 },
+    { "rule": "Log4j - potential RCE exploit", "severity": "HIGH", "events": 1 },
+    { "rule": "OneLogin - Actor_user changed password for user", "severity": "MEDIUM", "events": 5 },
+    { "rule": "OneLogin - Actor_user generated temporary OTP token for user", "severity": "HIGH", "events": 2 },
+    { "rule": "OneLogin - User could not be provisioned in app", "severity": "INFO", "events": 139 }
+  ],
+  "logTypesVolume": [
+    { "type": "logzio_syslog", "volume": 450 },
+    { "type": "m3-query-service", "volume": 320 },
+    { "type": "query-service-query", "volume": 280 },
+    { "type": "logzio_authlog", "volume": 190 },
+    { "type": "accounts-access", "volume": 150 },
+    { "type": "m3-ingester", "volume": 110 },
+    { "type": "haproxy", "volume": 95 }
+  ]
+}
