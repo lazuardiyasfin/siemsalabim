@@ -1,10 +1,13 @@
 import { dashboardRoutes } from "./routes/dashboard";
 import { checkAuthStatus } from "../features/auth/api/get_user";
 import { authRoutes } from "./routes/auth";
+import { logManagementRoutes } from "./routes/log-management";
+import { createIcons, Gauge, FileCog, ShieldAlert, Trash2 } from 'lucide';
 
 const routes = [
     ...dashboardRoutes,
-    ...authRoutes
+    ...authRoutes,
+    ...logManagementRoutes
 ];
 
 async function handleRouting() {
@@ -25,9 +28,16 @@ async function handleRouting() {
     }
 
     appContainer.innerHTML = route.render();
-    
+
     if (route.init) {
         route.init();
+    }
+
+    // Create icons only when on authenticated views
+    if (route.requiresAuth) {
+        createIcons({
+            icons: { Gauge, FileCog, ShieldAlert, Trash2 }
+        });
     }
 }
 

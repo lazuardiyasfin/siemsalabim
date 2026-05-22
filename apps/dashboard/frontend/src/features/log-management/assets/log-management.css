@@ -1,0 +1,76 @@
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.logs-toolbar button {
+    height: var(--toolbar-height);
+    box-sizing: border-box;
+    padding: 6px 12px;
+    font-size: 1rem;
+    border: 1px solid var(--color-border-input);
+    border-radius: 4px;
+    background-color: var(--color-card-bg);
+}
+
+.logs-toolbar button:last-of-type {
+    background-color: var(--color-primary-blue);
+    color: var(--color-text-light);
+    border-color: var(--color-primary-border);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.logs-toolbar button:last-of-type:hover {
+    background-color: var(--color-primary-border);
+}
+
+
+.table-responsive {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-card);
+    border-radius: 4px;
+    padding: 15px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+}
+
+.logs-table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+.logs-table th {
+    padding: 12px;
+    border-bottom: 2px solid var(--color-border-table);
+    font-weight: bold;
+}
+
+.logs-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border-table);
+    color: var(--color-text-dark);
+}
+
+.action-delete {
+    color: var(--color-danger, #dc3545);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.action-delete:hover {
+    color: #bd2130; 
+}
+
+.action-delete svg {
+    width: 18px;
+    height: 18px;
+}

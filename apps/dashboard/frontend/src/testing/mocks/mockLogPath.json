@@ -1,0 +1,26 @@
+[
+  {
+    "host": "prod-app-server",
+    "exporterId": "exporter-linux-01",
+    "logPath": "/var/log/auth.log",
+    "logFormat": "syslog",
+    "status": "Active",
+    "statusClass": "status-active"
+  },
+  {
+    "host": "prod-app-server",
+    "exporterId": "exporter-nginx-01",
+    "logPath": "/var/log/nginx/access.log",
+    "logFormat": "json",
+    "status": "Active",
+    "statusClass": "status-active"
+  },
+  {
+    "host": "db-primary-srv",
+    "exporterId": "exporter-mysql-02",
+    "logPath": "/var/log/mysql/error.log",
+    "logFormat": "text",
+    "status": "Idle",
+    "statusClass": "status-idle"
+  }
+]
