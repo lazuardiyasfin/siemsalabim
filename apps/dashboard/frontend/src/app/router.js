@@ -5,7 +5,7 @@ const routes = [
 ];
 
 function handleRouting() {
-    const path = window.location.pathname;
+    const path = globalThis.location.pathname;
     const route = routes.find(r => r.path === path);
     const appContainer = document.getElementById('app');
 
@@ -22,6 +22,6 @@ function handleRouting() {
 }
 
 export function initRouter() {
-    window.addEventListener('popstate', handleRouting);
+    globalThis.addEventListener('popstate', handleRouting);
     handleRouting();
 }
