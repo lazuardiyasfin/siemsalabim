@@ -16,7 +16,7 @@ export function renderAppLayout(contentHtml) {
             <ul>
                 <li><a href="/" data-route><i data-lucide="gauge" class="nav-icon"></i></a></li>
                 <li><a href="/logs" data-route><i data-lucide="file-cog" class="nav-icon"></i></a></li>
-                <li><a href="/alerts" data-route><i data-lucide="shield-alert" class="nav-icon"></i></a></li>
+                <li><a href="/rules" data-route><i data-lucide="shield-alert" class="nav-icon"></i></a></li>
             </ul>
         </nav> 
 

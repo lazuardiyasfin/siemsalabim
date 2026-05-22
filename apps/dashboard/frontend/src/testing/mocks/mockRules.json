@@ -1,0 +1,35 @@
+[
+  {
+    "id": "nginx_scanner_404",
+    "name": "Vulnerability Scanner Detected",
+    "severity": "medium",
+    "program": "nginx",
+    "frequency": {
+      "count": 10,
+      "window_seconds": 60
+    },
+    "status": "active"
+  },
+  {
+    "id": "sshd_brute_force",
+    "name": "SSH Brute Force Attempt",
+    "severity": "high",
+    "program": "sshd",
+    "frequency": {
+      "count": 5,
+      "window_seconds": 10
+    },
+    "status": "active"
+  },
+  {
+    "id": "mysql_admin_login",
+    "name": "Anomalous Database Admin Login",
+    "severity": "critical",
+    "program": "mysql",
+    "frequency": {
+      "count": 1,
+      "window_seconds": 0
+    },
+    "status": "inactive"
+  }
+]

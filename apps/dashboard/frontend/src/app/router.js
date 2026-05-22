@@ -2,12 +2,14 @@ import { dashboardRoutes } from "./routes/dashboard";
 import { checkAuthStatus } from "../features/auth/api/get_user";
 import { authRoutes } from "./routes/auth";
 import { logManagementRoutes } from "./routes/log-management";
-import { createIcons, Gauge, FileCog, ShieldAlert, Trash2 } from 'lucide';
+import { createIcons, Gauge, FileCog, ShieldAlert, Trash2, Pencil } from 'lucide';
+import { ruleManagementRoutes } from "./routes/rule-management";
 
 const routes = [
     ...dashboardRoutes,
     ...authRoutes,
-    ...logManagementRoutes
+    ...logManagementRoutes,
+    ...ruleManagementRoutes
 ];
 
 async function handleRouting() {
@@ -36,7 +38,7 @@ async function handleRouting() {
     // Create icons only when on authenticated views
     if (route.requiresAuth) {
         createIcons({
-            icons: { Gauge, FileCog, ShieldAlert, Trash2 }
+            icons: { Gauge, FileCog, ShieldAlert, Trash2, Pencil }
         });
     }
 }
