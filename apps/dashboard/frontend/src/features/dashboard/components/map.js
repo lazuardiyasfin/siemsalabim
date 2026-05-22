@@ -1,15 +1,17 @@
 import L from 'leaflet';
+import { getColor } from '../utils/map-helpers';
 
 let map = null;
 
-function getColor(count) {
-    switch (true) {
-        case count > 109: return '#800026';
-        case count > 73:  return '#BD0026';
-        case count > 37:  return '#E31A1C';
-        case count > 1:   return '#FC4E2A';
-        default:          return '#FD8D3C';
-    }
+export function renderMap() {
+    return `
+    <section class="widget-card col-span-6 row-span-2">
+        <h3 class="widget-title">Attacker origin</h3>
+        <div class="map-wrapper">
+            <div id="map-container"></div>
+        </div>
+    </section>   
+    `;
 }
 
 export function initAttackerMap(attackerData) {

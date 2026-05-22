@@ -15,6 +15,17 @@ Chart.register(
 
 let logTypesChart = null;
 
+export function renderLogTypesChart() {
+    return `
+    <section class="widget-card col-span-6 row-span-2">
+        <h3 class="widget-title">Log types volume breakdown</h3>
+        <div class="chart-wrapper">
+            <canvas id="log-types-breakdown"></canvas>
+        </div>
+    </section> 
+    `;
+}
+
 export function initLogTypesChart(logVolumesData) {
     const ctx = document.getElementById('log-types-breakdown');
     if (!ctx) {
