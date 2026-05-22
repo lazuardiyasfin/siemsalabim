@@ -1,14 +1,13 @@
-"""Tests for EngineClient."""
-
 import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import pytest_asyncio
 
 from dashboard_backend.engine_client import EngineClient
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def engine_client():
     """Create an EngineClient instance."""
     callback = AsyncMock()
@@ -104,19 +103,17 @@ async def test_listen_valid_json():
     callback = AsyncMock()
     client = EngineClient("ws://localhost:8000/ws/dashboard", on_event=callback)
 
+    # Create a proper async iterator mock
+    async def async_iter():
+        yield '{"type": "event", "data": {"message": "test"}}'
+
     mock_websocket = AsyncMock()
-    mock_websocket.recv = AsyncMock(
-        side_effect=[
-            '{"type": "event", "data": {"message": "test"}}',
-            asyncio.CancelledError(),
-        ]
-    )
+    mock_websocket.__aiter__ = lambda self: async_iter()
+
     client.websocket = mock_websocket
     client.connected = True
 
-    with pytest.raises(asyncio.CancelledError):
-        async for _ in client._listen():
-            pass
+    await client._listen()
 
     callback.assert_called_once()
 
@@ -128,15 +125,14 @@ async def test_listen_invalid_json():
     client = EngineClient("ws://localhost:8000/ws/dashboard", on_event=callback)
 
     mock_websocket = AsyncMock()
-    mock_websocket.recv = AsyncMock(
-        side_effect=["invalid json {", asyncio.CancelledError()]
+    mock_websocket.__aiter__ = AsyncMock(return_value=mock_websocket)
+    mock_websocket.__anext__ = AsyncMock(
+        side_effect=["invalid json {", StopAsyncIteration()]
     )
     client.websocket = mock_websocket
     client.connected = True
 
-    with pytest.raises(asyncio.CancelledError):
-        async for _ in client._listen():
-            pass
+    await client._listen()
 
     callback.assert_not_called()
 
@@ -148,12 +144,11 @@ async def test_listen_exception_handling():
     client = EngineClient("ws://localhost:8000/ws/dashboard", on_event=callback)
 
     mock_websocket = AsyncMock()
-    mock_websocket.recv = AsyncMock(side_effect=Exception("Connection error"))
+    mock_websocket.__aiter__ = AsyncMock(return_value=mock_websocket)
+    mock_websocket.__anext__ = AsyncMock(side_effect=Exception("Connection error"))
     client.websocket = mock_websocket
     client.connected = True
 
-    with pytest.raises(Exception):
-        async for _ in client._listen():
-            pass
+    await client._listen()
 
     assert client.connected is False

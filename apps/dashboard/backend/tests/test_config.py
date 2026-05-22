@@ -1,5 +1,3 @@
-"""Tests for Dashboard Backend config."""
-
 import os
 from unittest.mock import patch
 
