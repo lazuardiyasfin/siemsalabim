@@ -29,15 +29,15 @@ async function handleRouting() {
 
     appContainer.innerHTML = route.render();
 
+    if (route.init) {
+        route.init();
+    }
+
     // Create icons only when on authenticated views
     if (route.requiresAuth) {
         createIcons({
             icons: { Gauge, FileCog, ShieldAlert, Trash2 }
         });
-    }
-
-    if (route.init) {
-        route.init();
     }
 }
 
