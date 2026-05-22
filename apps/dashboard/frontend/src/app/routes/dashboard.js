@@ -6,6 +6,7 @@ export const dashboardRoutes = [
     {
         path: '/',
         render: () => renderAppLayout(renderDashboard()),
-        init: () => initDashboard(mockData)
+        init: () => initDashboard(mockData),
+        requiresAuth: true
     }
 ]
