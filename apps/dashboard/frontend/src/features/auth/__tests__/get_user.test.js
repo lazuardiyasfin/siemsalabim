@@ -1,22 +1,28 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { checkAuthStatus, setTokenStatus } from '../api/get_user';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { checkAuthStatus } from '../api/get_user';
 
 describe('checkAuthStatus()', () => {
     beforeEach(() => {
-        setTokenStatus(false);
+        vi.restoreAllMocks();
     });
 
-    it('Should return false if user isn\'t authenticated', async () => {
-        const status = await checkAuthStatus();
+    it('Should return true if token exists in localStorage', async () => {
+        const mockGetItem = vi.fn().mockReturnValue('jwt-token');
         
-        expect(status).toBe(false);
+        vi.stubGlobal('localStorage', { getItem: mockGetItem });
+
+        const result = await checkAuthStatus();
+
+        expect(mockGetItem).toHaveBeenCalledWith('token');
+        expect(result).toBe(true);
     });
 
-    it('Should return true if user is authenticated', async () => {
-        setTokenStatus(true);
-        
-        const status = await checkAuthStatus();
-        
-        expect(status).toBe(true);
+    it('Should return false if token does not exist in localStorage', async () => {
+        const mockGetItem = vi.fn().mockReturnValue(null);
+        vi.stubGlobal('localStorage', { getItem: mockGetItem });
+
+        const result = await checkAuthStatus();
+
+        expect(result).toBe(false);
     });
 });

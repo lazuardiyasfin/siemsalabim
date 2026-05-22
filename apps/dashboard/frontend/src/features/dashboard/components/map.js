@@ -1,3 +1,4 @@
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getColor } from '../utils/map-helpers';
 
