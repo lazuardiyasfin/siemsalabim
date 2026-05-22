@@ -1,5 +1,4 @@
-import 'leaflet/dist/leaflet.css';
-import './style.css';
+import './styles/global.css';
 import { initRouter } from './app/router';
 
 document.addEventListener('DOMContentLoaded', () => {
