@@ -1,0 +1,144 @@
+.rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.rules-toolbar button {
+    height: var(--toolbar-height);
+    box-sizing: border-box;
+    padding: 6px 12px;
+    font-size: 1rem;
+    border: 1px solid var(--color-border-input);
+    border-radius: 4px;
+    background-color: var(--color-card-bg);
+}
+
+.rules-toolbar button:last-of-type {
+    background-color: var(--color-primary-blue);
+    color: var(--color-text-light);
+    border-color: var(--color-primary-border);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.rules-toolbar button:last-of-type:hover {
+    background-color: var(--color-primary-border);
+}
+
+
+.table-responsive {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-card);
+    border-radius: 4px;
+    padding: 15px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+}
+
+.rules-table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+.rules-table th {
+    padding: 12px;
+    border-bottom: 2px solid var(--color-border-table);
+    font-weight: bold;
+}
+
+.rules-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border-table);
+    color: var(--color-text-dark);
+}
+
+.action-delete {
+    color: var(--color-danger, #dc3545);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.action-delete:hover {
+    color: #bd2130; 
+}
+
+.action-delete svg {
+    width: 18px;
+    height: 18px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.action-edit {
+    color: var(--color-text-dark, #6c757d);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s ease;
+}
+
+.action-edit:hover {
+    color: var(--color-primary-blue, #007bff);
+}
+
+.action-edit svg {
+    width: 18px;
+    height: 18px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 22px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--color-primary-blue, #007bff);
+}
+
+input:checked + .slider:before {
+    transform: translateX(18px);
+}
