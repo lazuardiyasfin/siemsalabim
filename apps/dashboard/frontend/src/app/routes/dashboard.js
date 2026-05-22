@@ -9,4 +9,4 @@ export const dashboardRoutes = [
         init: () => initDashboard(mockData),
         requiresAuth: true
     }
-]
+];

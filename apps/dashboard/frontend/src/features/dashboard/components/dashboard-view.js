@@ -1,3 +1,4 @@
+import '../assets/dashboard.css'
 import { createIcons, Gauge, FileCog, ShieldAlert } from 'lucide';
 import { renderStats, initStats } from './stats.js';
 import { renderEventsLineChart, initEventsOverTimeChart } from './events-line-chart.js';
