@@ -6,9 +6,9 @@ export function renderLogin() {
         <span class="logo-text">Siemsalabim</span>
     </div>
     
-    <form>
-        <input type="text" placeholder="Username" required>
-        <input type="password" placeholder="Password" required>
+    <form id="login-form">
+        <input type="text" placeholder="Username" id="username" required>
+        <input type="password" placeholder="Password" id="password" required>
         
         <div class="form-footer">
             <label>
@@ -18,4 +18,23 @@ export function renderLogin() {
         </div>
     </form>
     `;
+}
+
+export function initLogin(onSuccessCallback) {
+    const form = document.getElementById('login-form');
+    if (!form) return;
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        if (username === 'admin' && password === 'admin') {
+            localStorage.setItem('token', 'mock-jwt-token');
+            onSuccessCallback(); 
+        } else {
+            alert('Invalid credentials');
+        }
+    });
 }

@@ -1,9 +1,13 @@
 import { renderAuthLayout } from "../../components/layouts/auth-layout";
-import { renderLogin } from "../../features/auth/components/login";
+import { initLogin, renderLogin } from "../../features/auth/components/login";
+import { navigateTo } from "../router";
 
 export const authRoutes = [
     {
         path: '/login',
-        render: () => renderAuthLayout(renderLogin())
+        render: () => renderAuthLayout(renderLogin()),
+        init: () => initLogin(() => {
+            navigateTo('/');
+        })
     }
 ];
