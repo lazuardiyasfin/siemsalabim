@@ -2,6 +2,7 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from .broadcaster import EventBroadcaster
 from .config import EngineConfig
 from .models import RawLog
 from .parser import parse
@@ -22,7 +23,11 @@ async def verify_token(websocket: WebSocket, config: EngineConfig) -> bool:
     return False
 
 
-async def ingest_handler(websocket: WebSocket, config: EngineConfig) -> None:
+async def ingest_handler(
+    websocket: WebSocket,
+    config: EngineConfig,
+    broadcaster: EventBroadcaster | None = None,
+) -> None:
     await websocket.accept()
 
     if not await verify_token(websocket, config):
@@ -45,6 +50,13 @@ async def ingest_handler(websocket: WebSocket, config: EngineConfig) -> None:
                         event.decoded.get("action", ""),
                         {k: v for k, v in event.decoded.items() if k != "action"},
                     )
+                    if broadcaster:
+                        await broadcaster.broadcast(
+                            {
+                                "type": "event",
+                                "data": event.model_dump(),
+                            }
+                        )
                 else:
                     logger.info(
                         "[%s] %s:%s — %s",
