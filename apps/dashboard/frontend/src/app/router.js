@@ -1,8 +1,10 @@
 import { dashboardRoutes } from "./routes/dashboard";
 import { checkAuthStatus } from "../features/auth/api/get_user";
+import { authRoutes } from "./routes/auth";
 
 const routes = [
-    ...dashboardRoutes
+    ...dashboardRoutes,
+    ...authRoutes
 ];
 
 async function handleRouting() {
