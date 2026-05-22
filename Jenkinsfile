@@ -170,7 +170,7 @@ pipeline {
                                     apps/dashboard/frontend/src/config/**/*,\
                                     apps/dashboard/frontend/src/main.js,\
                                     apps/dashboard/frontend/src/app/router.js,\
-                                    apps/dashboard/frontend/src/app/routes.js,\
+                                    apps/dashboard/frontend/src/app/routes/**/*,\
                                     apps/dashboard/frontend/src/testing/**/*"
                             """
                         }
