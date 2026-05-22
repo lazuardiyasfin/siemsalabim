@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { checkAuthStatus, setTokenStatus, setTokenStatus } from '../api/get_user';
+import { checkAuthStatus, setTokenStatus } from '../api/get_user';
 
 describe('checkAuthStatus()', () => {
     beforeEach(() => {
