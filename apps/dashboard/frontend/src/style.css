@@ -131,17 +131,6 @@ main {
   width: 100%;
 }
 
-.stat-card, .widget-card {
-  background-color: var(--color-card-bg);
-  border-radius: 4px;
-  padding: 15px;
-  border: 1px solid var(--color-border-card);
-}
-
-.stat-title, .widget-title {
-  font-size: 1rem;
-}
-
 /* Toolbar styles */
 
 .dashboard-toolbar {
@@ -168,7 +157,18 @@ main {
   font-weight: 500;
 }
 
-/* Stat styles */
+/* Stat & Widget styles */
+
+.stat-card, .widget-card {
+  background-color: var(--color-card-bg);
+  border-radius: 4px;
+  padding: 15px;
+  border: 1px solid var(--color-border-card);
+}
+
+.stat-title, .widget-title {
+  font-size: 1rem;
+}
 
 .stat-card {
   display: flex;
@@ -177,6 +177,12 @@ main {
 
 .stat-value {
   font-size: 3rem;
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 /* Table styles */
@@ -201,4 +207,10 @@ td {
   padding: 10px 12px;
   border-bottom: 2px solid var(--color-border-table);
   color: var(--color-text-dark);
+}
+
+/* Map styles */
+#map-container {
+  height: 60vh;
+  width: 100%;
 }
