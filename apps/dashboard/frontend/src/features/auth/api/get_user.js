@@ -5,10 +5,5 @@ export function setTokenStatus(status) {
 }
 
 export async function checkAuthStatus() {
-    const token = tokenExists;
-    if (token) {
-        return true;
-    } else {
-        return false;
-    }
+    return tokenExists;
 }
