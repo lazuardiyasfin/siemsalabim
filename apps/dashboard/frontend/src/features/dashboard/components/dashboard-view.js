@@ -1,33 +1,22 @@
 import { createIcons, Gauge, FileCog, ShieldAlert } from 'lucide';
-import { renderAppLayout } from '../../../components/layouts/app-layout.js';
 import { renderStats, initStats } from './stats.js';
 import { renderEventsLineChart, initEventsOverTimeChart } from './events-line-chart.js';
 import { renderLogTypesChart, initLogTypesChart } from './log-types-chart.js';
 import { renderTables, initSummaryTable } from './tables.js';
 import { renderMap, initAttackerMap } from './map.js';
 
-export function initDashboard(mockData) {
-    const dashboardHtml = `
+export function renderDashboard() {
+    return `
     <div class="dashboard-header">
-        <div class="header-title">
-            <h1>Security Overview</h1>
-        </div>
-
+        <div class="header-title"><h1>Security Overview</h1></div>
         <menu class="dashboard-toolbar">
             <div class="time-filter">
                 <select class="select-time-preset">
-                    <option value="1h">Last 1 hour</option>
                     <option value="24h" selected>Last 24 hours</option>
-                    <option value="7d">Last 7 days</option>
-                    <option value="30d">Last 30 days</option>
                 </select>
-                <button>Show Dates</button>
             </div>
-            
-            <button>Refresh</button>
         </menu>
     </div>
-
     <div class="dashboard-grid">
         ${renderStats()}
         ${renderMap()}
@@ -36,15 +25,11 @@ export function initDashboard(mockData) {
         ${renderLogTypesChart()}
     </div>
     `;
+}
 
-    document.querySelector('#app').innerHTML = renderAppLayout(dashboardHtml);
-
+export function initDashboard(mockData) {
     createIcons({
-        icons: {
-            Gauge,
-            FileCog,
-            ShieldAlert
-        }
+        icons: { Gauge, FileCog, ShieldAlert }
     });
 
     if (mockData) {
