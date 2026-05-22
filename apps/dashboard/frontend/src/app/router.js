@@ -1,16 +1,24 @@
 import { dashboardRoutes } from "./routes/dashboard";
+import { checkAuthStatus } from "../features/auth/api/get_user";
 
 const routes = [
     ...dashboardRoutes
 ];
 
-function handleRouting() {
+async function handleRouting() {
     const path = globalThis.location.pathname;
     const route = routes.find(r => r.path === path);
     const appContainer = document.getElementById('app');
 
     if (!route) {
         appContainer.innerHTML = `<h1>404 - Not Found</h1>`;
+        return;
+    }
+
+    const isAuthenticated = await checkAuthStatus();
+
+    if (route.requiresAuth && !isAuthenticated) {
+        navigateTo('/login');
         return;
     }
 
