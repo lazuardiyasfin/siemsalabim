@@ -49,10 +49,7 @@ class WebSocketClient:
                 break
 
             logger.info("Reconnecting in %.1fs...", backoff)
-            try:
-                await asyncio.sleep(backoff)
-            except asyncio.CancelledError:
-                raise
+            await asyncio.sleep(backoff)
             backoff = min(backoff * 2, BACKOFF_MAX)
 
     def stop(self) -> None:
