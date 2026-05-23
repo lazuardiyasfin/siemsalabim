@@ -45,6 +45,7 @@ class Pipeline:
             await asyncio.gather(ws_task, process_task, save_task)
         except asyncio.CancelledError:
             logger.info("Pipeline shutting down...")
+            raise
         finally:
             watcher.stop()
             self._ws.stop()
