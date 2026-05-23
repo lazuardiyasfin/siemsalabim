@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Set
+from typing import Set, Annotated
 
 import jwt
 from fastapi import (
@@ -95,7 +95,7 @@ app = FastAPI(
 async def login(
     request: Request,
     response: Response,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> dict:
     """Endpoint for single admin authentication and JWT token issuance via HttpOnly cookie."""
     config = request.app.state.config
