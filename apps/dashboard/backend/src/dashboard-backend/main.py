@@ -2,6 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Set, Annotated
+from pathlib import Path
 
 import jwt
 from fastapi import (
@@ -16,6 +17,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 
 from .config import DashboardConfig
 from .engine_client import EngineClient
@@ -191,6 +193,12 @@ async def ws_events(websocket: WebSocket) -> None:
         logger.info(
             "Frontend disconnected. Total frontends: %d", len(connected_frontends)
         )
+
+        
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  
+FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
+
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
 
 
 if __name__ == "__main__":

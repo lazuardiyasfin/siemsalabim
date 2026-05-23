@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -13,3 +14,12 @@ class DashboardConfig(BaseSettings):
     user: str = "admin"
     password_hash: str | None = None
     jwt_secret_key: str | None = None
+
+    allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:8001"]
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
