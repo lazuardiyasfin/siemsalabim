@@ -243,6 +243,31 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy with Ansible') {
+            when {
+                allOf {
+                    branch 'main'
+                    not { changeRequest() } 
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_TMP_PATH')]) {
+                    dir('devops/ansible') {
+                        sh 'cp "$INVENTORY_TMP_PATH" inventory.ini'
+                        ansiblePlaybook disableHostKeyChecking: true,
+                                        inventory: 'inventory.ini',
+                                        playbook: 'playbook.yml'
+                    }
+                }
+            }
+            post {
+                always {
+                    sh 'rm -f devops/ansible/inventory.ini'
+                }
+            }
+        }
+
     }
 
     post {

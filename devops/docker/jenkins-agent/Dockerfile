@@ -19,7 +19,7 @@ Components: stable \n\
 Architectures: $(dpkg --print-architecture) \n\
 Signed-By: /etc/apt/keyrings/docker.asc" > /etc/apt/sources.list.d/docker.sources \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get update && apt-get install -y docker-ce-cli nodejs \
+    && apt-get update && apt-get install -y docker-ce-cli nodejs ansible \
     && rm -rf /var/lib/apt/lists/*
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
