@@ -9,6 +9,7 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Request,
+    Response,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -90,25 +91,30 @@ app = FastAPI(
 
 
 @app.post("/login")
-async def login(
-    request: Request, form_data: OAuth2PasswordRequestForm = Depends()
-) -> dict:
-    """Endpoint for single-user authentication and JWT token issuance."""
+async def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends()) -> dict:
+    """Endpoint for single admin authentication and JWT token issuance via HttpOnly cookie."""
     config = request.app.state.config
 
-    if form_data.username != config.user or not verify_password(
-        form_data.password, config.password_hash
-    ):
+    if form_data.username != config.user or not verify_password(form_data.password, config.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect username or password"
         )
 
     access_token = create_access_token(
-        data={"sub": config.user}, secret_key=config.jwt_secret_key
+        data={"sub": config.user}, 
+        secret_key=config.jwt_secret_key
     )
-
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,   
+        samesite="lax",
+    )
+    
+    return {"message": "Login successful"}
 
 
 @app.get("/health")
@@ -127,17 +133,18 @@ async def stats() -> dict:
 
 
 @app.websocket("/ws/events")
-async def ws_events(websocket: WebSocket, token: str | None = None) -> None:
+async def ws_events(websocket: WebSocket) -> None:
     """WebSocket endpoint for frontend to receive real-time events from engine."""
     await websocket.accept()
     config = websocket.app.state.config
 
-    # Validate presence of the token
+    # Extract token automatically from HttpOnly cookies
+    token = websocket.cookies.get("access_token")
+
+    # Validate presence of the token cookie
     if not token:
-        logger.warning("WebSocket connection rejected: Missing token parameter")
-        await websocket.close(
-            code=status.WS_1008_POLICY_VIOLATION, reason="Missing token"
-        )
+        logger.warning("WebSocket connection rejected: Missing token cookie")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
         return
 
     # Validate JWT token signature and expiration status
@@ -146,15 +153,11 @@ async def ws_events(websocket: WebSocket, token: str | None = None) -> None:
         username: str = payload.get("sub")
         if username != config.user:
             logger.warning("WebSocket connection rejected: Invalid user identification")
-            await websocket.close(
-                code=status.WS_1008_POLICY_VIOLATION, reason="Invalid user"
-            )
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid user")
             return
     except jwt.PyJWTError:
         logger.warning("WebSocket connection rejected: Invalid or expired token")
-        await websocket.close(
-            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token"
-        )
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token")
         return
 
     # Connection accepted and tracked
@@ -169,7 +172,6 @@ async def ws_events(websocket: WebSocket, token: str | None = None) -> None:
         logger.info(
             "Frontend disconnected. Total frontends: %d", len(connected_frontends)
         )
-
 
 if __name__ == "__main__":
     import uvicorn
