@@ -1,3 +1,10 @@
 export async function checkAuthStatus() {
-    return !!localStorage.getItem('token');
-}
+    try {
+        const response = await fetch('/api/auth/me', {
+            credentials: "same-origin"
+        });
+        return response.ok;
+    } catch {
+        return false;
+    }
+}   
