@@ -252,11 +252,10 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([string(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_CONTENT')]) {
+                withCredentials([file(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_TMP_PATH')]) {
                     dir('devops/ansible') {
-                        sh 'echo "$INVENTORY_CONTENT" > inventory.ini'
+                        sh 'cp "$INVENTORY_TMP_PATH" inventory.ini'
                         ansiblePlaybook disableHostKeyChecking: true,
-                                        installation: 'Ansible',
                                         inventory: 'inventory.ini',
                                         playbook: 'playbook.yml'
                     }
