@@ -94,11 +94,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.allowed_origins,  
+    allow_origins=config.allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],    
+    allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.post("/login")
 async def login(
@@ -194,8 +195,8 @@ async def ws_events(websocket: WebSocket) -> None:
             "Frontend disconnected. Total frontends: %d", len(connected_frontends)
         )
 
-        
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
