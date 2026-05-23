@@ -1,4 +1,3 @@
-
 import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -47,7 +46,9 @@ async def ingest_handler(
                 event = parse(raw_log)
 
                 if event is None:
-                    logger.debug("[%s] Unparseable: %s", raw_log.exporter_id, raw_log.line[:80])
+                    logger.debug(
+                        "[%s] Unparseable: %s", raw_log.exporter_id, raw_log.line[:80]
+                    )
                     continue
 
                 alerts = rule_engine.evaluate(event)
