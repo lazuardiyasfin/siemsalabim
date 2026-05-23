@@ -2,6 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Set, Annotated
+from pathlib import Path
 
 import jwt
 from fastapi import (
@@ -14,7 +15,9 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 
 from .config import DashboardConfig
 from .engine_client import EngineClient
@@ -76,7 +79,7 @@ async def lifespan(app: FastAPI):
     engine_task.cancel()
     try:
         await engine_task
-    except asyncio.CancelledError:
+    except (asyncio.CancelledError, Exception):
         logger.info("Engine task cancelled successfully.")
     finally:
         if engine_client:
@@ -87,6 +90,14 @@ app = FastAPI(
     title="siemsalabim-dashboard",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -184,6 +195,16 @@ async def ws_events(websocket: WebSocket) -> None:
             "Frontend disconnected. Total frontends: %d", len(connected_frontends)
         )
 
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
+
+if FRONTEND_DIR.exists() and FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
+else:
+    logger.warning(
+        "Frontend directory not found: %s. Skipping static files mount.", FRONTEND_DIR
+    )
 
 if __name__ == "__main__":
     import uvicorn
