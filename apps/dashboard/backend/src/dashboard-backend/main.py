@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
     engine_task.cancel()
     try:
         await engine_task
-    except Exception:
+    except (asyncio.CancelledError, Exception):
         logger.info("Engine task cancelled successfully.")
     finally:
         if engine_client:
