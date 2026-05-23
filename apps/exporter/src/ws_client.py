@@ -43,16 +43,13 @@ class WebSocketClient:
                 logger.warning("WebSocket connection lost: %s", exc)
             except asyncio.CancelledError:
                 logger.info("WebSocket client cancelled, shutting down.")
-                return
+                raise
 
             if not self._running:
                 break
 
             logger.info("Reconnecting in %.1fs...", backoff)
-            try:
-                await asyncio.sleep(backoff)
-            except asyncio.CancelledError:
-                return
+            await asyncio.sleep(backoff)
             backoff = min(backoff * 2, BACKOFF_MAX)
 
     def stop(self) -> None:
