@@ -3,10 +3,21 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Set
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import jwt
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
+from fastapi.security import OAuth2PasswordRequestForm
 
 from .config import DashboardConfig
 from .engine_client import EngineClient
+from .security import ALGORITHM, create_access_token, verify_password
 
 config = DashboardConfig()
 
@@ -44,6 +55,13 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting dashboard backend...")
 
+    if not config.password_hash or not config.jwt_secret_key:
+        raise ValueError(
+            "Missing DASHBOARD_PASSWORD_HASH and DASHBOARD_JWT_SECRET_KEY."
+        )
+
+    app.state.config = config
+
     async def on_engine_event(event: dict) -> None:
         """Handle event from engine."""
         await broadcast_to_frontends(event)
@@ -57,6 +75,8 @@ async def lifespan(app: FastAPI):
     engine_task.cancel()
     try:
         await engine_task
+    except asyncio.CancelledError:
+        logger.info("Engine task cancelled successfully.")
     finally:
         if engine_client:
             await engine_client.disconnect()
@@ -67,6 +87,28 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.post("/login")
+async def login(
+    request: Request, form_data: OAuth2PasswordRequestForm = Depends()
+) -> dict:
+    """Endpoint for single-user authentication and JWT token issuance."""
+    config = request.app.state.config
+
+    if form_data.username != config.user or not verify_password(
+        form_data.password, config.password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+        )
+
+    access_token = create_access_token(
+        data={"sub": config.user}, secret_key=config.jwt_secret_key
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.get("/health")
@@ -85,9 +127,37 @@ async def stats() -> dict:
 
 
 @app.websocket("/ws/events")
-async def ws_events(websocket: WebSocket) -> None:
+async def ws_events(websocket: WebSocket, token: str | None = None) -> None:
     """WebSocket endpoint for frontend to receive real-time events from engine."""
     await websocket.accept()
+    config = websocket.app.state.config
+
+    # Validate presence of the token
+    if not token:
+        logger.warning("WebSocket connection rejected: Missing token parameter")
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Missing token"
+        )
+        return
+
+    # Validate JWT token signature and expiration status
+    try:
+        payload = jwt.decode(token, config.jwt_secret_key, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username != config.user:
+            logger.warning("WebSocket connection rejected: Invalid user identification")
+            await websocket.close(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Invalid user"
+            )
+            return
+    except jwt.PyJWTError:
+        logger.warning("WebSocket connection rejected: Invalid or expired token")
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token"
+        )
+        return
+
+    # Connection accepted and tracked
     connected_frontends.add(websocket)
     logger.info("Frontend connected. Total frontends: %d", len(connected_frontends))
 
