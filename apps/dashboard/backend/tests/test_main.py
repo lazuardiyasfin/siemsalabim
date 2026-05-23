@@ -1,9 +1,13 @@
+from dashboard_backend.main import app, config
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
+import pytest_asyncio
+from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 
 pytest_plugins = ("pytest_asyncio",)
 
@@ -191,3 +195,55 @@ async def test_stats_endpoint():
             except Exception:
                 # If TestClient fails due to lifecycle, just pass
                 pass
+
+
+@pytest_asyncio.fixture
+async def client():
+    """Fixture untuk menyediakan AsyncClient HTTPX."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://localhost"
+    ) as ac:
+        yield ac
+
+
+@pytest.fixture
+def mock_config():
+    """Fixture untuk menyediakan konfigurasi aplikasi."""
+    return config
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_success(client: AsyncClient, mock_config):
+    """Should return username only if HttpOnly cookie is valid."""
+    from dashboard_backend.security import create_access_token
+
+    token = create_access_token(
+        data={"sub": mock_config.user}, secret_key=mock_config.jwt_secret_key
+    )
+
+    client.cookies.set("access_token", token)
+
+    response = await client.get("/api/auth/me")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"username": mock_config.user}
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_missing_token(client: AsyncClient):
+    """Should return 401 status if cookie does not include token."""
+    response = await client.get("/api/auth/me")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "No token found"
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_invalid_token(client: AsyncClient):
+    """Should return 401 status if token is invalid."""
+    client.cookies.set("access_token", "token_asal_asalan_atau_invalid")
+
+    response = await client.get("/api/auth/me")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "Invalid or expired token"

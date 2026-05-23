@@ -196,6 +196,30 @@ async def ws_events(websocket: WebSocket) -> None:
         )
 
 
+@app.get(
+    "/api/auth/me",
+    responses={401: {"description": "Validation error: invalid user or token"}},
+)
+async def get_current_user(request: Request) -> dict:
+    """Check if user is authenticated and return user info."""
+    token = request.cookies.get("access_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="No token found"
+        )
+
+    config = request.app.state.config
+    try:
+        payload = jwt.decode(token, config.jwt_secret_key, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username != config.user:
+            raise HTTPException(status_code=401, detail="Invalid user")
+        return {"username": username}
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
 
