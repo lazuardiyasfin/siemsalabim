@@ -10,9 +10,8 @@ COPY pyproject.toml ./
 
 COPY apps/engine ./apps/engine
 
-RUN uv sync --project ./apps/engine --no-dev --frozen
-
-RUN adduser -D -u 1000 engine && chown -R engine:engine /app
+RUN uv sync --project ./apps/engine --no-dev --frozen \
+    && adduser -D -u 1000 engine && chown -R engine:engine /app
 
 USER engine
 

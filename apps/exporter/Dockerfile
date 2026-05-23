@@ -8,9 +8,8 @@ COPY pyproject.toml uv.lock ./
 
 COPY apps/exporter ./apps/exporter
 
-RUN uv sync --project ./apps/exporter --no-dev --frozen
-
-RUN mkdir -p /var/lib/exporter && \
+RUN uv sync --project ./apps/exporter --no-dev --frozen && \
+    mkdir -p /var/lib/exporter && \
     adduser -D -u 1000 exporter && \
     chown -R exporter:exporter /app /var/lib/exporter
 
