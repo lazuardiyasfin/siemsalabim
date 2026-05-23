@@ -19,8 +19,8 @@ services:
     container_name: siem-engine-container
     image: ${REGISTRY_USER}/siem-engine:${IMAGE_TAG:-latest}
     build:
-      context: ./apps/engine
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
     ports:
       - "8000:8000"
     environment:
