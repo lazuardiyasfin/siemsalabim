@@ -38,7 +38,9 @@ def test_websocket_invalid_token(client):
     """Test that WebSocket connection is rejected with an invalid token cookie."""
     with pytest.raises(WebSocketDisconnect) as exc_info:
         # Pass invalid token via cookies dictionary
-        with client.websocket_connect("/ws/events", cookies={"access_token": "invalid_value"}) as websocket:
+        with client.websocket_connect(
+            "/ws/events", cookies={"access_token": "invalid_value"}
+        ) as websocket:
             websocket.receive_text()
     assert exc_info.value.code == 1008
 
@@ -52,5 +54,7 @@ def test_websocket_success(client):
     token = login_response.cookies.get("access_token")
 
     # Connect to WebSocket; TestClient automatically forwards session cookies
-    with client.websocket_connect("/ws/events", cookies={"access_token": token}) as websocket:
+    with client.websocket_connect(
+        "/ws/events", cookies={"access_token": token}
+    ) as websocket:
         websocket.send_text("ping")

@@ -91,29 +91,34 @@ app = FastAPI(
 
 
 @app.post("/login")
-async def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends()) -> dict:
+async def login(
+    request: Request,
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+) -> dict:
     """Endpoint for single admin authentication and JWT token issuance via HttpOnly cookie."""
     config = request.app.state.config
 
-    if form_data.username != config.user or not verify_password(form_data.password, config.password_hash):
+    if form_data.username != config.user or not verify_password(
+        form_data.password, config.password_hash
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
+            detail="Incorrect username or password",
         )
 
     access_token = create_access_token(
-        data={"sub": config.user}, 
-        secret_key=config.jwt_secret_key
+        data={"sub": config.user}, secret_key=config.jwt_secret_key
     )
-    
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,   
+        secure=True,
         samesite="lax",
     )
-    
+
     return {"message": "Login successful"}
 
 
@@ -144,7 +149,9 @@ async def ws_events(websocket: WebSocket) -> None:
     # Validate presence of the token cookie
     if not token:
         logger.warning("WebSocket connection rejected: Missing token cookie")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Missing token"
+        )
         return
 
     # Validate JWT token signature and expiration status
@@ -153,11 +160,15 @@ async def ws_events(websocket: WebSocket) -> None:
         username: str = payload.get("sub")
         if username != config.user:
             logger.warning("WebSocket connection rejected: Invalid user identification")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid user")
+            await websocket.close(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Invalid user"
+            )
             return
     except jwt.PyJWTError:
         logger.warning("WebSocket connection rejected: Invalid or expired token")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token")
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token"
+        )
         return
 
     # Connection accepted and tracked
@@ -172,6 +183,7 @@ async def ws_events(websocket: WebSocket) -> None:
         logger.info(
             "Frontend disconnected. Total frontends: %d", len(connected_frontends)
         )
+
 
 if __name__ == "__main__":
     import uvicorn
