@@ -14,6 +14,7 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 
 from .config import DashboardConfig
@@ -89,6 +90,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.allowed_origins,  
+    allow_credentials=True,
+    allow_methods=["*"],    
+    allow_headers=["*"],
+)
 
 @app.post("/login")
 async def login(
