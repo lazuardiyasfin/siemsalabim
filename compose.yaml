@@ -3,8 +3,16 @@ services:
     container_name: siem-dashboard-container
     image: ${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG:-latest}
     build:
-      context: ./apps/dashboard
-      dockerfile: Dockerfile
+      context: . 
+      dockerfile: apps/dashboard/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH}
+      - DASHBOARD_JWT_SECRET_KEY=${DASHBOARD_JWT_SECRET_KEY}
+      - DASHBOARD_ENGINE_URL=ws://siem-engine:8000/ws/dashboard
+    depends_on:
+      - siem-engine
     restart: unless-stopped
 
   siem-engine:
@@ -13,4 +21,8 @@ services:
     build:
       context: ./apps/engine
       dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
     restart: unless-stopped
