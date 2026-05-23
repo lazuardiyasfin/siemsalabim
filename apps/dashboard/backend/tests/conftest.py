@@ -1,6 +1,16 @@
 import sys
+import os
 from pathlib import Path
 import importlib.util
+import bcrypt
+
+# Set mock environment variables before executing modules
+MOCK_PASSWORD = "admin123"
+MOCK_HASH = bcrypt.hashpw(MOCK_PASSWORD.encode(), bcrypt.gensalt()).decode()
+
+os.environ["DASHBOARD_USER"] = "admin"
+os.environ["DASHBOARD_PASSWORD_HASH"] = MOCK_HASH
+os.environ["DASHBOARD_JWT_SECRET_KEY"] = "super-secret-key-for-testing-12345"
 
 # Add src directory to path so dashboard-backend can be imported
 src_path = Path(__file__).parent.parent / "src"
