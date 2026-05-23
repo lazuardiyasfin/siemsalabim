@@ -1,0 +1,7 @@
+---
+- name: Playbook Testing
+  hosts: ec2-siem-1
+  tasks:
+    - name: Playbook Echo Test
+      ansible.builtin.shell: |
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] Playbook YML isn't it" >> ~/log.txt
