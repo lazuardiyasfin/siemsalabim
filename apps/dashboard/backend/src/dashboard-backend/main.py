@@ -202,7 +202,9 @@ FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
 if FRONTEND_DIR.exists() and FRONTEND_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
 else:
-    logger.warning("Frontend directory not found: %s. Skipping static files mount.", FRONTEND_DIR)
+    logger.warning(
+        "Frontend directory not found: %s. Skipping static files mount.", FRONTEND_DIR
+    )
 
 if __name__ == "__main__":
     import uvicorn
