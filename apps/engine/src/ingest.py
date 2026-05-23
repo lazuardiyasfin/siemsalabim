@@ -6,6 +6,7 @@ from .broadcaster import EventBroadcaster
 from .config import EngineConfig
 from .models import RawLog
 from .parser import parse
+from .rules import RuleEngine
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ async def verify_token(websocket: WebSocket, config: EngineConfig) -> bool:
 async def ingest_handler(
     websocket: WebSocket,
     config: EngineConfig,
+    rule_engine: RuleEngine,
     broadcaster: EventBroadcaster | None = None,
 ) -> None:
     await websocket.accept()
@@ -42,7 +44,31 @@ async def ingest_handler(
             try:
                 raw_log = RawLog(**data)
                 event = parse(raw_log)
-                if event and event.decoded:
+
+                if event is None:
+                    logger.debug(
+                        "[%s] Unparseable: %s", raw_log.exporter_id, raw_log.line[:80]
+                    )
+                    continue
+
+                alerts = rule_engine.evaluate(event)
+
+                if alerts:
+                    for alert in alerts:
+                        logger.warning(
+                            "[ALERT][%s] %s — %s",
+                            alert.severity.upper(),
+                            alert.rule_name,
+                            alert.description,
+                        )
+
+                    # broadcast alerts to dashboard.
+                    if broadcaster:
+                        for alert in alerts:
+                            await broadcaster.broadcast(
+                                {"type": "alert", "data": alert.model_dump(mode="json")}
+                            )
+                elif event.decoded:
                     logger.info(
                         "[%s] %s → %s %s",
                         raw_log.exporter_id,
@@ -50,24 +76,16 @@ async def ingest_handler(
                         event.decoded.get("action", ""),
                         {k: v for k, v in event.decoded.items() if k != "action"},
                     )
-                    if broadcaster:
-                        await broadcaster.broadcast(
-                            {
-                                "type": "event",
-                                "data": event.model_dump(),
-                            }
-                        )
-                else:
-                    logger.info(
-                        "[%s] %s:%s — %s",
-                        raw_log.exporter_id,
-                        raw_log.host,
-                        raw_log.path,
-                        raw_log.line[:120],
+
+                # broadcast all events to dashboard.
+                if broadcaster:
+                    await broadcaster.broadcast(
+                        {"type": "event", "data": event.model_dump(mode="json")}
                     )
+
             except Exception as exc:
                 logger.warning("Malformed message from %s: %s", client, exc)
-                await websocket.close(code=CLOSE_MALFORMED, reason="Malformed JSON")
+                await websocket.close(code=CLOSE_MALFORMED, reason="Malformed payload")
                 return
     except WebSocketDisconnect:
         logger.info("Exporter disconnected: %s", client)
