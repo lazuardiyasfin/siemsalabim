@@ -247,7 +247,7 @@ pipeline {
         stage('Deploy with Ansible') {
             when {
                 allOf {
-                    branch 'chore/ansible-cd'
+                    branch 'main'
                     not { changeRequest() } 
                 }
             }
