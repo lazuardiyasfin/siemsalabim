@@ -196,7 +196,10 @@ async def ws_events(websocket: WebSocket) -> None:
         )
 
 
-@app.get("/api/auth/me")
+@app.get(
+    "/api/auth/me",
+    responses={401: {"description": "Validation error: invalid user or token"}},
+)
 async def get_current_user(request: Request) -> dict:
     """Check if user is authenticated and return user info."""
     token = request.cookies.get("access_token")
