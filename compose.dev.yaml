@@ -1,0 +1,41 @@
+services:
+  siem-dashboard:
+    container_name: siem-dashboard-dev
+    build:
+      context: . 
+      dockerfile: apps/dashboard/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH}
+      - DASHBOARD_JWT_SECRET_KEY=${DASHBOARD_JWT_SECRET_KEY}
+      - DASHBOARD_ENGINE_URL=ws://siem-engine:8000/ws/dashboard
+    depends_on:
+      - siem-engine
+
+  siem-engine:
+    container_name: siem-engine-dev
+    build:
+      context: .
+      dockerfile: apps/engine/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
+    command: uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+  siem-exporter:
+    container_name: siem-exporter-dev
+    build:
+      context: .
+      dockerfile: apps/exporter/Dockerfile
+    environment:
+      - SIEM_INGEST_URL=ws://siem-engine:8000/ws/ingest
+      - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
+      - SIEM_EXPORTER_ID=test-exporter
+      - SIEM_WATCH_PATHS=/logs/test.log  
+      - SIEM_LOG_LEVEL=DEBUG
+    volumes:
+      - ./test-logs:/logs:ro            
+    depends_on:
+      - siem-engine
