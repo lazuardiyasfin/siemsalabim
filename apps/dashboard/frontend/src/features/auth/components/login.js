@@ -1,3 +1,4 @@
+import { loginUser } from '../api/login';
 import '../assets/login.css'
 
 export function renderLogin() {
@@ -24,17 +25,23 @@ export function initLogin(onSuccessCallback) {
     const form = document.getElementById('login-form');
     if (!form) return;
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
 
-        if (username === 'admin' && password === 'admin') {
-            localStorage.setItem('token', 'mock-jwt-token');
-            onSuccessCallback(); 
-        } else {
-            alert('Invalid credentials');
+        try {
+            const isSuccess = await loginUser(username, password);
+
+            if (isSuccess) {
+                onSuccessCallback(); 
+            } else {
+                alert('Invalid credentials.');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('A network error occurred. Please try again.');
         }
     });
 }
