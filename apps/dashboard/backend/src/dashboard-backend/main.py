@@ -199,8 +199,10 @@ async def ws_events(websocket: WebSocket) -> None:
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
 
-app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
-
+if FRONTEND_DIR.exists() and FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
+else:
+    logger.warning("Frontend directory not found: %s. Skipping static files mount.", FRONTEND_DIR)
 
 if __name__ == "__main__":
     import uvicorn
