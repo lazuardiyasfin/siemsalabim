@@ -10,15 +10,20 @@
 
   tasks:
     # 1. Install Dependencies (Idempotent: skips if already installed)
-    - name: Ensure Nginx and Docker Python library are installed
-      apt:
+    - name: Ensure Nginx, Docker, and Pip are installed
+      yum:
         name:
           - nginx
-          - docker.io
-          - python3-docker # Required by Ansible's docker_container module
+          - docker
+          - python3-pip
         state: present
         update_cache: yes
-    
+
+    - name: Ensure Ansible Docker library is installed via pip
+      pip:
+        name: docker
+        executable: pip3
+
     - name: Ensure Docker service is running and enabled on boot
       service:
         name: docker

@@ -196,12 +196,12 @@ pipeline {
         }
 
         stage('App Docker Build') {
-            when {
-                anyOf {
-                    branch 'main'
-                    changeRequest()
-                }
-            }
+            // when {
+            //     anyOf {
+            //         branch 'main'
+            //         changeRequest()
+            //     }
+            // }
             steps {
                 withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDS_ID, passwordVariable: 'GH_TOKEN', usernameVariable: 'GH_USER')]) {
                     sh '''
@@ -216,12 +216,12 @@ pipeline {
         }
 
         stage('App Docker Push') {
-            when {
-                allOf {
-                    branch 'main'
-                    not { changeRequest() } 
-                }
-            }
+            // when {
+            //     allOf {
+            //         branch 'main'
+            //         not { changeRequest() } 
+            //     }
+            // }
             steps {
                 withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDS_ID, passwordVariable: 'GH_TOKEN', usernameVariable: 'GH_USER')]) {
                     sh '''
@@ -250,12 +250,12 @@ pipeline {
         }
 
         stage('Deploy with Ansible') {
-            when {
-                allOf {
-                    branch 'main'
-                    not { changeRequest() } 
-                }
-            }
+            // when {
+            //     allOf {
+            //         branch 'main'
+            //         not { changeRequest() } 
+            //     }
+            // }
             steps {
                 withCredentials([
                     file(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_TMP_PATH'),
