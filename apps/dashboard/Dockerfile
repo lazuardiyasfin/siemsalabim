@@ -32,6 +32,12 @@ RUN uv sync --project ./apps/dashboard/backend --no-dev --frozen
 
 COPY apps/dashboard/backend ./apps/dashboard/backend
 
+# Prepare the GeoIP database
+RUN apk add --no-cache curl \
+    && curl -L -o ./apps/dashboard/backend/src/dashboard-backend/GeoLite2-City.mmdb.gz "https://cdn.jsdelivr.net/npm/geolite2-city/GeoLite2-City.mmdb.gz" \
+    && gunzip ./apps/dashboard/backend/src/dashboard-backend/GeoLite2-City.mmdb.gz \
+    && apk del curl
+
 COPY --from=frontend-builder /build/frontend/dist ./apps/dashboard/frontend/dist
 
 RUN adduser -D -u 1000 dashboard && chown -R dashboard:dashboard /app
