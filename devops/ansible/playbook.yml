@@ -51,18 +51,19 @@
 
     - name: Pull SIEM Engine Docker Image
       docker_image:
-        name: "ghcr.io/ilhmpbta/siem-engine:{{ image_tag }}"
+        name: "ghcr.io/ilhmpbta/siem-engine:latest"
         source: pull
 
     - name: Pull SIEM Dashboard Docker Image
       docker_image:
-        name: "ghcr.io/ilhmpbta/siem-dashboard:{{ image_tag }}"
+        name: "ghcr.io/ilhmpbta/siem-dashboard:latest"
         source: pull
 
     - name: Run SIEM Engine Container
       docker_container:
         name: siem-engine
-        image: "ghcr.io/ilhmpbta/siem-engine:{{ image_tag }}"
+        image: "ghcr.io/ilhmpbta/siem-engine:latest"
+        pull: true
         state: started
         restart_policy: unless-stopped
         networks:
@@ -75,7 +76,8 @@
     - name: Run SIEM Dashboard Container
       docker_container:
         name: siem-dashboard
-        image: "ghcr.io/ilhmpbta/siem-dashboard:{{ image_tag }}"
+        image: "ghcr.io/ilhmpbta/siem-dashboard:latest"
+        pull: true
         state: started
         restart_policy: unless-stopped
         networks:
