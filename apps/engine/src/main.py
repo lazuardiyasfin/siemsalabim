@@ -1,11 +1,13 @@
 import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
+from .database import init_db
 from .ingest import ingest_handler
 from .parser import init_parser
 from .parser.decoders import reload_decoders
@@ -30,7 +32,18 @@ decoders_dir = Path(__file__).parent.parent / "decoders"
 rule_engine = RuleEngine(rules_dir)
 init_parser(decoders_dir)
 
-app = FastAPI(title="siemsalabim-engine", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handles application startup and shutdown tasks."""
+    try:
+        await init_db()
+        logger.info("Database verification and table creation complete.")
+    except Exception as e:
+        logger.error(f"Critical error during database initialization: {e}")
+        raise e
+    yield
+
+app = FastAPI(title="siemsalabim-engine", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")
