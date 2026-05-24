@@ -32,6 +32,7 @@ decoders_dir = Path(__file__).parent.parent / "decoders"
 rule_engine = RuleEngine(rules_dir)
 init_parser(decoders_dir)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handles application startup and shutdown tasks."""
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Critical error during database initialization: {e}")
         raise e
     yield
+
 
 app = FastAPI(title="siemsalabim-engine", version="0.1.0", lifespan=lifespan)
 

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 DB_PATH = Path("siem.db")
 
+
 @asynccontextmanager
 async def get_db_session(db_path: Path = DB_PATH):
     """Context manager to automatically open, configure, and close the connection."""
@@ -11,6 +12,7 @@ async def get_db_session(db_path: Path = DB_PATH):
         db.row_factory = aiosqlite.Row
         await db.execute("PRAGMA foreign_keys=ON;")
         yield db
+
 
 async def init_db(db_path: Path = DB_PATH) -> None:
     """Initialize the database, enable WAL mode, and create tables."""
@@ -37,6 +39,7 @@ async def init_db(db_path: Path = DB_PATH) -> None:
             );
         """)
         await db.commit()
+
 
 async def get_db(db_path: Path = DB_PATH):
     """Dependency generator."""
