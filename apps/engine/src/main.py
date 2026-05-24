@@ -125,9 +125,7 @@ async def get_historical_alerts(
             "severity": row["severity"],
             "description": row["description"],
             "event_count": row["event_count"],
-            "source_events": json.loads(
-                row["source_events"]
-            ),  
+            "source_events": json.loads(row["source_events"]),
         }
         for row in rows
     ]
