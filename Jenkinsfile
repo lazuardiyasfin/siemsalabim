@@ -250,12 +250,12 @@ pipeline {
         }
 
         stage('Deploy with Ansible') {
-            // when {
-            //     allOf {
-            //         branch 'main'
-            //         not { changeRequest() } 
-            //     }
-            // }
+            when {
+                allOf {
+                    branch 'main'
+                    not { changeRequest() } 
+                }
+            }
             steps {
                 withCredentials([
                     file(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_TMP_PATH'),

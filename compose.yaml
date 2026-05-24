@@ -1,6 +1,6 @@
 services:
   siem-dashboard:
-    container_name: siem-dashboard-container
+    container_name: siem-dashboard
     image: ${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG:-latest}
     build:
       context: . 
@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   siem-engine:
-    container_name: siem-engine-container
+    container_name: siem-engine
     image: ${REGISTRY_USER}/siem-engine:${IMAGE_TAG:-latest}
     build:
       context: .
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   siem-exporter:
-    container_name: siem-exporter-container
+    container_name: siem-exporter
     image: ${REGISTRY_USER}/siem-exporter:${IMAGE_TAG:-latest}
     build:
       context: .
