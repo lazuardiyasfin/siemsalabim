@@ -1,4 +1,5 @@
 import '../assets/dashboard.css'
+import { getHistoricalAlerts } from '../api/get-alerts.js';
 import { connectDashboardWebSocket } from '../api/stream-events.js';
 import { 
     renderStats, 
@@ -55,9 +56,56 @@ export function initDashboard() {
     initAlertsTable([]);
     initAttackerMap();
 
-    document.getElementById('dashboard-refresh-btn')?.addEventListener('click', () => {
-        initDashboard();
-    });
+    async function seedHistoricalData() {
+        try {
+            const historicalData = await getHistoricalAlerts();
+            initAlertsTable(historicalData);
+
+            historicalData.forEach(alert => {
+                try { 
+                    incrementTotalAlerts(); 
+                } catch (e) { 
+                    console.error('Failed to seed total alerts metric:', e); 
+                }
+                
+                try {
+                    const severity = alert.severity?.toUpperCase();
+                    if (severity === 'CRITICAL' || severity === 'HIGH') incrementCriticalAlerts();
+                } catch (e) { 
+                    console.error('Failed to seed critical alerts metric:', e); 
+                }
+                
+                try {
+                    const program = alert.source_events?.[0]?.program;
+                    if (program) updateLogTypeVolume(program);
+                } catch (e) { 
+                    console.error('Failed to seed log type volume chart:', e); 
+                }
+                
+                try {
+                    if (alert.timestamp) addEventToTimeline(alert.timestamp);
+                } catch (e) { 
+                    console.error('Failed to seed event timeline chart:', e); 
+                }
+                
+                try {
+                    const ip = alert.source_events?.[0]?.decoded?.src_ip;
+                    if (alert.lat && alert.lon) addAttackerLocation(alert.lat, alert.lon, ip);
+                } catch (e) { 
+                    console.error('Failed to seed attacker map coordinates:', e); 
+                }
+            });
+        } catch (err) {
+            console.error("Failed to seed initial dashboard dataset:", err);
+        }
+    }
+
+    seedHistoricalData();
+
+    const refreshBtn = document.getElementById('dashboard-refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.onclick = () => initDashboard();
+    }
 
     const disconnectStream = connectDashboardWebSocket(handleAlertMetrics, handleSystemMetrics);
 
