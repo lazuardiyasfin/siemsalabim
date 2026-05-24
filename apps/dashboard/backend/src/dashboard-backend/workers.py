@@ -29,7 +29,7 @@ async def eps_broadcast_worker(state) -> None:
 
             payload = {"type": "EPS_UPDATE", "value": current_eps}
             await broadcast_to_frontends(state, payload)
-        except asyncio.CancelledError:  
+        except asyncio.CancelledError:
             raise
         except Exception as exc:
             logger.error("Error in EPS broadcast worker: %s", exc)
