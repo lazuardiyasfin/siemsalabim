@@ -24,7 +24,8 @@ services:
       - "8000:8000"
     environment:
       - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
-    command: uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./data:/app/apps/engine/data
 
   siem-exporter:
     container_name: siem-exporter-dev

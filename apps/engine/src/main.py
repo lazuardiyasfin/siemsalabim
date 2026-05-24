@@ -1,11 +1,16 @@
+import json
+import aiosqlite
 import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
+from .database import init_db, get_db
 from .ingest import ingest_handler
 from .parser import init_parser
 from .parser.decoders import reload_decoders
@@ -30,7 +35,20 @@ decoders_dir = Path(__file__).parent.parent / "decoders"
 rule_engine = RuleEngine(rules_dir)
 init_parser(decoders_dir)
 
-app = FastAPI(title="siemsalabim-engine", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handles application startup and shutdown tasks."""
+    try:
+        await init_db()
+        logger.info("Database verification and table creation complete.")
+    except Exception as e:
+        logger.error(f"Critical error during database initialization: {e}")
+        raise e
+    yield
+
+
+app = FastAPI(title="siemsalabim-engine", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -78,6 +96,40 @@ async def ws_dashboard(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         broadcaster.disconnect(websocket)
         logger.info("Dashboard unsubscribed from events")
+
+
+@app.get("/api/alerts")
+async def get_historical_alerts(
+    db: Annotated[aiosqlite.Connection, Depends(get_db)],
+    limit: int = 100,
+    severity: str | None = None,
+) -> list[dict]:
+    """Exposes structured historical alert logs for the dashboard backend."""
+    if severity:
+        query = (
+            "SELECT * FROM alerts WHERE severity = ? ORDER BY timestamp DESC LIMIT ?;"
+        )
+        params = (severity.upper(), limit)
+    else:
+        query = "SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?;"
+        params = (limit,)
+
+    async with db.execute(query, params) as cursor:
+        rows = await cursor.fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "rule_id": row["rule_id"],
+            "rule_name": row["rule_name"],
+            "severity": row["severity"],
+            "description": row["description"],
+            "event_count": row["event_count"],
+            "source_events": json.loads(row["source_events"]),
+        }
+        for row in rows
+    ]
 
 
 if __name__ == "__main__":
