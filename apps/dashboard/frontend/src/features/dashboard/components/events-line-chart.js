@@ -18,6 +18,7 @@ Chart.register(
 );
 
 let eventsOverTimeChart = null;
+const MAX_TIMELINE_POINTS = 15;
 
 export function renderEventsLineChart() {
     return `
@@ -30,7 +31,7 @@ export function renderEventsLineChart() {
     `;
 }
 
-export function initEventsOverTimeChart(eventsData) {
+export function initEventsOverTimeChart() {
     const ctx = document.getElementById('events-over-time');
     if (!ctx) {
         return;
@@ -43,16 +44,10 @@ export function initEventsOverTimeChart(eventsData) {
     eventsOverTimeChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: eventsData.map(row => {
-                const timestamp = new Date(row.timestamp);
-                return timestamp.toLocaleString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
-            }),
+            labels: [],
             datasets: [{
-                data: eventsData.map(row => row.count)
+                data: [],
+                tension: 0.2
             }]
         },
         options: {
@@ -65,8 +60,48 @@ export function initEventsOverTimeChart(eventsData) {
                 },
                 tooltip: {
                     enabled: false
+                },
+                colors: {
+                    forceOverride: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
                 }
             }
         }
     });
+}
+
+export function addEventToTimeline(timestampString) {
+    if (!eventsOverTimeChart) return;
+
+    const timestamp = new Date(timestampString);
+    const timeLabel = timestamp.toLocaleString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+
+    const labels = eventsOverTimeChart.data.labels;
+    const dataset = eventsOverTimeChart.data.datasets[0].data;
+    const index = labels.indexOf(timeLabel);
+
+    if (index === -1) {
+        labels.push(timeLabel);
+        dataset.push(1);
+
+        if (labels.length > MAX_TIMELINE_POINTS) {
+            labels.shift();
+            dataset.shift();
+        }
+    } else {
+        dataset[index] += 1;
+    }
+
+    eventsOverTimeChart.update();
 }

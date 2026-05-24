@@ -1,5 +1,3 @@
-from dashboard_backend.main import app, config
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,37 +7,38 @@ from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
 
+from dashboard_backend.main import app, config
+from dashboard_backend.state import DashboardState
+
 pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest.mark.asyncio
 async def test_broadcast_to_frontends_empty():
     """Test broadcast to frontends when no frontends connected."""
-    from dashboard_backend.main import broadcast_to_frontends, connected_frontends
+    from dashboard_backend.workers import broadcast_to_frontends
 
-    connected_frontends.clear()
+    mock_state = MagicMock()
+    mock_state.connected_frontends = set()
 
     # Should not raise even with no frontends
-    await broadcast_to_frontends({"type": "event", "data": {}})
+    await broadcast_to_frontends(mock_state, {"type": "ALERT", "data": {}})
 
 
 @pytest.mark.asyncio
 async def test_broadcast_to_frontends_with_clients():
     """Test broadcast to multiple frontends."""
-    from dashboard_backend.main import broadcast_to_frontends, connected_frontends
+    from dashboard_backend.workers import broadcast_to_frontends
 
-    connected_frontends.clear()
-
-    # Create mock websockets
     mock_ws1 = AsyncMock()
     mock_ws2 = AsyncMock()
-    connected_frontends.add(mock_ws1)
-    connected_frontends.add(mock_ws2)
 
-    event = {"type": "event", "data": {"message": "test"}}
-    await broadcast_to_frontends(event)
+    mock_state = MagicMock()
+    mock_state.connected_frontends = {mock_ws1, mock_ws2}
 
-    # Both websockets should receive the event
+    event = {"type": "ALERT", "data": {"message": "test"}}
+    await broadcast_to_frontends(mock_state, event)
+
     mock_ws1.send_json.assert_called_once_with(event)
     mock_ws2.send_json.assert_called_once_with(event)
 
@@ -47,25 +46,20 @@ async def test_broadcast_to_frontends_with_clients():
 @pytest.mark.asyncio
 async def test_broadcast_handles_disconnected_client():
     """Test broadcast removes disconnected clients."""
-    from dashboard_backend.main import broadcast_to_frontends, connected_frontends
+    from dashboard_backend.workers import broadcast_to_frontends
 
-    connected_frontends.clear()
-
-    # Create mock websockets
     mock_ws_good = AsyncMock()
     mock_ws_bad = AsyncMock()
     mock_ws_bad.send_json = AsyncMock(side_effect=Exception("Client disconnected"))
 
-    connected_frontends.add(mock_ws_good)
-    connected_frontends.add(mock_ws_bad)
+    mock_state = MagicMock()
+    mock_state.connected_frontends = {mock_ws_good, mock_ws_bad}
 
-    event = {"type": "event", "data": {}}
-    await broadcast_to_frontends(event)
+    event = {"type": "ALERT", "data": {}}
+    await broadcast_to_frontends(mock_state, event)
 
-    # Good websocket should still be in set
-    # Bad one should be removed
-    assert mock_ws_good in connected_frontends
-    assert mock_ws_bad not in connected_frontends
+    assert mock_ws_good in mock_state.connected_frontends
+    assert mock_ws_bad not in mock_state.connected_frontends
 
 
 @pytest.mark.asyncio
@@ -73,128 +67,112 @@ async def test_lifespan_startup():
     """Test lifespan context manager startup."""
     from dashboard_backend.main import lifespan
 
-    app = FastAPI()
+    test_app = FastAPI()
 
-    lifespan_ctx = lifespan(app)
+    async def dummy_worker(*args, **kwargs):
+        pass
 
-    # Enter the context (startup)
-    with patch("dashboard_backend.main.engine_client"):
-        with patch("dashboard_backend.main.EngineClient") as mock_client_class:
-            mock_instance = AsyncMock()
-            mock_instance.reconnect = AsyncMock()
-            mock_client_class.return_value = mock_instance
+    with (
+        patch("dashboard_backend.main.EngineClient") as mock_client_class,
+        patch("dashboard_backend.main.eps_broadcast_worker", side_effect=dummy_worker),
+        patch(
+            "dashboard_backend.main.exporter_monitor_worker", side_effect=dummy_worker
+        ),
+        patch("dashboard_backend.main.close_geoip_reader"),
+    ):
+        mock_instance = AsyncMock()
+        mock_instance.reconnect = AsyncMock()
+        mock_client_class.return_value = mock_instance
 
-            await lifespan_ctx.__aenter__()
-            # Note: This is a simplified test. Full test would need proper async handling
+        async with lifespan(test_app):
+            assert isinstance(test_app.state.live_state, DashboardState)
 
 
 @pytest.mark.asyncio
 async def test_lifespan_shutdown():
-    """Test lifespan context manager shutdown."""
+    """Test lifespan context manager shutdown sequence."""
     from dashboard_backend.main import lifespan
 
-    app = FastAPI()
+    test_app = FastAPI()
+    mock_engine_instance = AsyncMock()
 
-    # Mock the engine_client
-    mock_engine_client = AsyncMock()
-    mock_engine_client.disconnect = AsyncMock()
+    async def dummy_worker(*args, **kwargs):
+        try:
+            await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            pass
 
-    with patch("dashboard_backend.main.engine_client", mock_engine_client):
-        with patch("dashboard_backend.main.EngineClient"):
-            with patch("dashboard_backend.main.asyncio.create_task") as mock_task:
-                mock_task_instance = AsyncMock()
-                mock_task_instance.cancel = MagicMock()
-                mock_task.return_value = mock_task_instance
+    with (
+        patch("dashboard_backend.main.EngineClient", return_value=mock_engine_instance),
+        patch("dashboard_backend.main.eps_broadcast_worker", side_effect=dummy_worker),
+        patch(
+            "dashboard_backend.main.exporter_monitor_worker", side_effect=dummy_worker
+        ),
+        patch("dashboard_backend.main.close_geoip_reader") as mock_close_geoip,
+    ):
+        async with lifespan(test_app):
+            pass
 
-                lifespan_ctx = lifespan(app)
-
-                try:
-                    await lifespan_ctx.__aenter__()
-                    await lifespan_ctx.__aexit__(None, None, None)
-                except Exception:
-                    pass
+        mock_close_geoip.assert_called_once()
+        mock_engine_instance.disconnect.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_lifespan_cancellation_reraised():
-    """Test that CancelledError is properly re-raised."""
+    """Test that CancelledError during gather bubbles up correctly."""
     from dashboard_backend.main import lifespan
 
-    app = FastAPI()
+    test_app = FastAPI()
+    mock_engine_instance = AsyncMock()
 
-    mock_engine_client = AsyncMock()
-    mock_engine_client.disconnect = AsyncMock()
-
-    mock_task = AsyncMock()
-    mock_task.cancel = MagicMock()
-    mock_task.__await__ = AsyncMock(side_effect=asyncio.CancelledError())
-
-    with patch("dashboard_backend.main.engine_client", mock_engine_client):
-        with patch("dashboard_backend.main.EngineClient"):
-            with patch(
-                "dashboard_backend.main.asyncio.create_task", return_value=mock_task
-            ):
-                lifespan_ctx = lifespan(app)
-
-                try:
-                    await lifespan_ctx.__aenter__()
-                    # The shutdown should handle CancelledError and still call disconnect
-                    await lifespan_ctx.__aexit__(None, None, None)
-                except Exception:
-                    pass
+    with (
+        patch("dashboard_backend.main.EngineClient", return_value=mock_engine_instance),
+        patch("dashboard_backend.main.eps_broadcast_worker"),
+        patch("dashboard_backend.main.exporter_monitor_worker"),
+        patch("dashboard_backend.main.close_geoip_reader"),
+        patch(
+            "dashboard_backend.main.asyncio.gather", side_effect=asyncio.CancelledError
+        ),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            async with lifespan(test_app):
+                pass
 
 
 @pytest.mark.asyncio
 async def test_health_endpoint():
     """Test health check endpoint."""
-    from dashboard_backend.main import app
+    if not hasattr(app.state, "live_state"):
+        app.state.live_state = DashboardState()
 
-    # Mock the lifespan to avoid connection issues
-    async def mock_lifespan(app):
-        yield
-        yield
-
-    with patch("dashboard_backend.main.lifespan", return_value=mock_lifespan(app)):
-        with patch("dashboard_backend.main.engine_client"):
-            try:
-                with TestClient(app) as client:
-                    response = client.get("/health")
-                    assert response.status_code == 200
-                    assert response.json() == {"status": "ok"}
-            except Exception:
-                # If TestClient fails due to lifecycle, just pass
-                pass
+    with TestClient(app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
 
 
 @pytest.mark.asyncio
 async def test_stats_endpoint():
-    """Test stats endpoint."""
-    from dashboard_backend.main import app, connected_frontends
+    """Test stats endpoint metrics mapping."""
+    mock_engine_instance = AsyncMock()
+    mock_engine_instance.connected = True
 
-    connected_frontends.clear()
+    with patch(
+        "dashboard_backend.main.EngineClient", return_value=mock_engine_instance
+    ):
+        with TestClient(app) as client:
+            # Inject the mock frontend directly into the active state lifecycle loop
+            client.app.state.live_state.connected_frontends.clear()
+            mock_ws = AsyncMock()
+            client.app.state.live_state.connected_frontends.add(mock_ws)
 
-    # Add mock frontends
-    mock_ws = AsyncMock()
-    connected_frontends.add(mock_ws)
-
-    # Mock the lifespan to avoid connection issues
-    async def mock_lifespan(app):
-        yield
-        yield
-
-    with patch("dashboard_backend.main.lifespan", return_value=mock_lifespan(app)):
-        with patch("dashboard_backend.main.engine_client") as mock_engine:
-            mock_engine.connected = True
-            try:
-                with TestClient(app) as client:
-                    response = client.get("/stats")
-                    assert response.status_code == 200
-                    data = response.json()
-                    assert "connected_frontends" in data
-                    assert "engine_connected" in data
-            except Exception:
-                # If TestClient fails due to lifecycle, just pass
-                pass
+            response = client.get("/stats")
+            assert response.status_code == 200
+            data = response.json()
+            assert "connected_frontends" in data
+            assert "engine_connected" in data
+            assert data["connected_frontends"] == 1
+            assert data["engine_connected"] is True
 
 
 @pytest_asyncio.fixture
@@ -222,7 +200,6 @@ async def test_get_current_user_success(client: AsyncClient, mock_config):
     )
 
     client.cookies.set("access_token", token)
-
     response = await client.get("/api/auth/me")
 
     assert response.status_code == status.HTTP_200_OK
@@ -242,8 +219,7 @@ async def test_get_current_user_missing_token(client: AsyncClient):
 async def test_get_current_user_invalid_token(client: AsyncClient):
     """Should return 401 status if token is invalid."""
     client.cookies.set("access_token", "token_asal_asalan_atau_invalid")
-
     response = await client.get("/api/auth/me")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["detail"] == "Invalid or expired token"
+    assert response.json()["detail"] == "Invalid token"

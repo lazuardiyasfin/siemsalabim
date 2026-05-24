@@ -80,7 +80,7 @@ pipeline {
         stage('JavaScript Checks') {
             when {
                 anyOf {
-                    changeset "apps/dashboard/frontend/**"
+                    changeset "apps/dashboard/**"
                     expression { currentBuild.number == 1 }
                 }
             }

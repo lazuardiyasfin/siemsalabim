@@ -1,7 +1,8 @@
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
-from typing import Set, Annotated
+from typing import Annotated
 from pathlib import Path
 
 import jwt
@@ -22,6 +23,13 @@ from fastapi.staticfiles import StaticFiles
 from .config import DashboardConfig
 from .engine_client import EngineClient
 from .security import ALGORITHM, create_access_token, verify_password
+from .state import DashboardState
+from .workers import (
+    broadcast_to_frontends,
+    eps_broadcast_worker,
+    exporter_monitor_worker,
+)
+from .enrich import enrich_geoip, close_geoip_reader
 
 config = DashboardConfig()
 
@@ -34,29 +42,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 engine_client: EngineClient | None = None
-connected_frontends: Set[WebSocket] = set()
-
-
-async def broadcast_to_frontends(event: dict) -> None:
-    """Broadcast event from engine to all connected frontends."""
-    disconnected = set()
-
-    for websocket in connected_frontends:
-        try:
-            await websocket.send_json(event)
-        except Exception as exc:
-            logger.warning("Failed to send event to frontend: %s", exc)
-            disconnected.add(websocket)
-
-    for websocket in disconnected:
-        connected_frontends.discard(websocket)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup/shutdown."""
     global engine_client
-
     logger.info("Starting dashboard backend...")
 
     if not config.password_hash or not config.jwt_secret_key:
@@ -65,32 +55,43 @@ async def lifespan(app: FastAPI):
         )
 
     app.state.config = config
+    app.state.live_state = DashboardState()
 
     async def on_engine_event(event: dict) -> None:
-        """Handle event from engine."""
-        await broadcast_to_frontends(event)
+        app.state.live_state.event_counter += 1
+
+        exporter_id = event.get("exporter_id") or "unknown_exporter"
+        app.state.live_state.exporter_registry[exporter_id] = time.time()
+
+        if "rule_id" in event and "type" not in event:
+            event["type"] = "ALERT"
+
+        if event["type"] == "ALERT":
+            event = enrich_geoip(event)
+
+        await broadcast_to_frontends(app.state.live_state, event)
 
     engine_client = EngineClient(config.engine_url, on_event=on_engine_event)
+
     engine_task = asyncio.create_task(engine_client.reconnect(max_retries=5))
+    eps_task = asyncio.create_task(eps_broadcast_worker(app.state.live_state))
+    exporter_task = asyncio.create_task(exporter_monitor_worker(app.state.live_state))
 
     yield
 
     logger.info("Shutting down dashboard backend...")
     engine_task.cancel()
-    try:
-        await engine_task
-    except (asyncio.CancelledError, Exception):
-        logger.info("Engine task cancelled successfully.")
-    finally:
-        if engine_client:
-            await engine_client.disconnect()
+    eps_task.cancel()
+    exporter_task.cancel()
+
+    await asyncio.gather(engine_task, eps_task, exporter_task, return_exceptions=True)
+
+    close_geoip_reader()
+    if engine_client:
+        await engine_client.disconnect()
 
 
-app = FastAPI(
-    title="siemsalabim-dashboard",
-    version="0.1.0",
-    lifespan=lifespan,
-)
+app = FastAPI(title="siemsalabim-dashboard", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -108,10 +109,9 @@ async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> dict:
     """Endpoint for single admin authentication and JWT token issuance via HttpOnly cookie."""
-    config = request.app.state.config
-
-    if form_data.username != config.user or not verify_password(
-        form_data.password, config.password_hash
+    cfg = request.app.state.config
+    if form_data.username != cfg.user or not verify_password(
+        form_data.password, cfg.password_hash
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,9 +119,8 @@ async def login(
         )
 
     access_token = create_access_token(
-        data={"sub": config.user}, secret_key=config.jwt_secret_key
+        data={"sub": cfg.user}, secret_key=cfg.jwt_secret_key
     )
-
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -129,7 +128,6 @@ async def login(
         secure=True,
         samesite="lax",
     )
-
     return {"message": "Login successful"}
 
 
@@ -140,10 +138,11 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/stats")
-async def stats() -> dict:
+async def stats(request: Request) -> dict:
     """Dashboard statistics."""
+    state = request.app.state.live_state
     return {
-        "connected_frontends": len(connected_frontends),
+        "connected_frontends": len(state.connected_frontends),
         "engine_connected": engine_client.connected if engine_client else False,
     }
 
@@ -152,72 +151,76 @@ async def stats() -> dict:
 async def ws_events(websocket: WebSocket) -> None:
     """WebSocket endpoint for frontend to receive real-time events from engine."""
     await websocket.accept()
-    config = websocket.app.state.config
+    cfg = websocket.app.state.config
+    state = websocket.app.state.live_state
 
-    # Extract token automatically from HttpOnly cookies
     token = websocket.cookies.get("access_token")
-
-    # Validate presence of the token cookie
     if not token:
-        logger.warning("WebSocket connection rejected: Missing token cookie")
         await websocket.close(
             code=status.WS_1008_POLICY_VIOLATION, reason="Missing token"
         )
         return
 
-    # Validate JWT token signature and expiration status
     try:
-        payload = jwt.decode(token, config.jwt_secret_key, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username != config.user:
-            logger.warning("WebSocket connection rejected: Invalid user identification")
+        payload = jwt.decode(token, cfg.jwt_secret_key, algorithms=[ALGORITHM])
+        if payload.get("sub") != cfg.user:
             await websocket.close(
                 code=status.WS_1008_POLICY_VIOLATION, reason="Invalid user"
             )
             return
     except jwt.PyJWTError:
-        logger.warning("WebSocket connection rejected: Invalid or expired token")
         await websocket.close(
-            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token"
+            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token"
         )
         return
 
-    # Connection accepted and tracked
-    connected_frontends.add(websocket)
-    logger.info("Frontend connected. Total frontends: %d", len(connected_frontends))
-
+    state.connected_frontends.add(websocket)
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        connected_frontends.discard(websocket)
-        logger.info(
-            "Frontend disconnected. Total frontends: %d", len(connected_frontends)
-        )
+        state.connected_frontends.discard(websocket)
 
 
 @app.get(
     "/api/auth/me",
-    responses={401: {"description": "Validation error: invalid user or token"}},
+    responses={
+        401: {
+            "description": "Session initialization failed due to missing or invalid credentials.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "missing_token": {
+                            "summary": "Token cookie is missing",
+                            "value": {"detail": "No token found"},
+                        },
+                        "invalid_user": {
+                            "summary": "Token subject mismatch",
+                            "value": {"detail": "Invalid user"},
+                        },
+                        "invalid_token": {
+                            "summary": "Token signature validation failed",
+                            "value": {"detail": "Invalid token"},
+                        },
+                    }
+                }
+            },
+        }
+    },
 )
 async def get_current_user(request: Request) -> dict:
-    """Check if user is authenticated and return user info."""
     token = request.cookies.get("access_token")
-
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="No token found"
-        )
+        raise HTTPException(status_code=401, detail="No token found")
 
-    config = request.app.state.config
+    cfg = request.app.state.config
     try:
-        payload = jwt.decode(token, config.jwt_secret_key, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username != config.user:
+        payload = jwt.decode(token, cfg.jwt_secret_key, algorithms=[ALGORITHM])
+        if payload.get("sub") != cfg.user:
             raise HTTPException(status_code=401, detail="Invalid user")
-        return {"username": username}
+        return {"username": cfg.user}
     except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
@@ -225,17 +228,10 @@ FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
 
 if FRONTEND_DIR.exists() and FRONTEND_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True))
-else:
-    logger.warning(
-        "Frontend directory not found: %s. Skipping static files mount.", FRONTEND_DIR
-    )
 
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "dashboard-backend.main:app",
-        host=config.host,
-        port=config.port,
-        reload=True,
+        "dashboard-backend.main:app", host=config.host, port=config.port, reload=True
     )

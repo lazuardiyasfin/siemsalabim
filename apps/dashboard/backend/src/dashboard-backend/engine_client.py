@@ -34,7 +34,7 @@ class EngineClient:
             async for message in self.websocket:
                 try:
                     data = json.loads(message)
-                    if data.get("type") == "event" and self.on_event:
+                    if data.get("type") == "alert" and self.on_event:
                         await self.on_event(data.get("data"))
                 except json.JSONDecodeError:
                     logger.warning("Received invalid JSON from engine: %s", message)

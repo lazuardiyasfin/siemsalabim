@@ -105,7 +105,7 @@ async def test_listen_valid_json():
 
     # Create a proper async iterator mock
     async def async_iter():
-        yield '{"type": "event", "data": {"message": "test"}}'
+        yield '{"type": "alert", "data": {"message": "test"}}'
 
     mock_websocket = AsyncMock()
     mock_websocket.__aiter__ = lambda self: async_iter()
