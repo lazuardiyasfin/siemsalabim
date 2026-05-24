@@ -185,8 +185,26 @@ async def ws_events(websocket: WebSocket) -> None:
 @app.get(
     "/api/auth/me",
     responses={
-        status.HTTP_401_UNAUTHORIZED: {
+        401: {
             "description": "Session initialization failed due to missing or invalid credentials.",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "missing_token": {
+                            "summary": "Token cookie is missing",
+                            "value": {"detail": "No token found"},
+                        },
+                        "invalid_user": {
+                            "summary": "Token subject mismatch",
+                            "value": {"detail": "Invalid user"},
+                        },
+                        "invalid_token": {
+                            "summary": "Token signature validation failed",
+                            "value": {"detail": "Invalid token"},
+                        },
+                    }
+                }
+            },
         }
     },
 )
