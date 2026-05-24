@@ -1,12 +1,12 @@
 services:
   siem-dashboard:
-    container_name: siem-dashboard-container
+    container_name: siem-dashboard
     image: ${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG:-latest}
     build:
       context: . 
       dockerfile: apps/dashboard/Dockerfile
       args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8001}
     ports:
       - "8001:8001"
     environment:
@@ -18,13 +18,26 @@ services:
     restart: unless-stopped
 
   siem-engine:
-    container_name: siem-engine-container
+    container_name: siem-engine
     image: ${REGISTRY_USER}/siem-engine:${IMAGE_TAG:-latest}
     build:
       context: .
-      dockerfile: apps/dashboard/Dockerfile
+      dockerfile: apps/engine/Dockerfile
     ports:
       - "8000:8000"
     environment:
       - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
+    restart: unless-stopped
+
+  siem-exporter:
+    container_name: siem-exporter
+    image: ${REGISTRY_USER}/siem-exporter:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/exporter/Dockerfile
+    environment:
+      - SIEM_ENGINE_WS_URL=ws://siem-engine:8000/ws/exporter
+      - SIEM_STATE_FILE_PATH=/var/lib/exporter/state.json
+    depends_on:
+      - siem-engine
     restart: unless-stopped

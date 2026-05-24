@@ -207,6 +207,7 @@ pipeline {
                     sh '''
                         export REGISTRY_USER="ghcr.io/${GH_USER}"
                         export IMAGE_TAG="v1.0.${BUILD_NUMBER}"
+                        export VITE_API_BASE_URL="https://siemsalabim.duckdns.org/engine"
 
                         docker compose build
                     '''
@@ -230,13 +231,17 @@ pipeline {
 
                         echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
                         
-                        docker compose push
+                        docker push "${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG}"
+                        docker push "${REGISTRY_USER}/siem-engine:${IMAGE_TAG}"
+                        docker push "${REGISTRY_USER}/siem-exporter:${IMAGE_TAG}"
 
                         docker tag "${REGISTRY_USER}/siem-dashboard:${IMAGE_TAG}" "${REGISTRY_USER}/siem-dashboard:latest"
                         docker tag "${REGISTRY_USER}/siem-engine:${IMAGE_TAG}" "${REGISTRY_USER}/siem-engine:latest"
-                        
+                        docker tag "${REGISTRY_USER}/siem-exporter:${IMAGE_TAG}" "${REGISTRY_USER}/siem-exporter:latest"
+
                         docker push "${REGISTRY_USER}/siem-dashboard:latest"
                         docker push "${REGISTRY_USER}/siem-engine:latest"
+                        docker push "${REGISTRY_USER}/siem-exporter:latest"
 
                         docker logout ghcr.io
                     '''
@@ -252,12 +257,25 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([file(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_TMP_PATH')]) {
-                    dir('devops/ansible') {
-                        sh 'cp "$INVENTORY_TMP_PATH" inventory.ini'
-                        ansiblePlaybook disableHostKeyChecking: true,
-                                        inventory: 'inventory.ini',
-                                        playbook: 'playbook.yml'
+                withCredentials([
+                    file(credentialsId: 'ansible-inventory-secret', variable: 'INVENTORY_TMP_PATH'),
+                    file(credentialsId: 'ansible-deploy-env', variable: 'DEPLOY_ENV_FILE')
+                ]) {
+                    script {
+                        def deployEnv = readProperties file: env.DEPLOY_ENV_FILE
+                        
+                        dir('devops/ansible') {
+                            sh 'cp "$INVENTORY_TMP_PATH" inventory.ini'
+                            
+                            ansiblePlaybook disableHostKeyChecking: true,
+                                            inventory: 'inventory.ini',
+                                            playbook: 'playbook.yml',
+                                            extraVars: [
+                                                dashboard_password_hash: [value: deployEnv['DASHBOARD_PASSWORD_HASH'], hidden: true],
+                                                dashboard_jwt_secret_key: [value: deployEnv['DASHBOARD_JWT_SECRET_KEY'], hidden: true],
+                                                siem_ingest_token: [value: deployEnv['INGEST_TOKEN'], hidden: true]
+                                            ]
+                        }
                     }
                 }
             }
