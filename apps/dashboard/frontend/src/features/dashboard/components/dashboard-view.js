@@ -1,5 +1,5 @@
 import '../assets/dashboard.css'
-import { API_CONFIG } from "../../../config/env.js";
+import { connectDashboardWebSocket } from '../api/stream-events.js';
 import { 
     renderStats, 
     initStats, 
@@ -12,10 +12,6 @@ import { renderEventsLineChart, initEventsOverTimeChart, addEventToTimeline } fr
 import { renderLogTypesChart, initLogTypesChart, updateLogTypeVolume } from './log-types-chart.js';
 import { renderAlertsTable, initAlertsTable, appendAlertsRow } from './tables.js';
 import { renderMap, initAttackerMap, addAttackerLocation } from './map.js';
-
-let socket = null;
-let reconnectTimeout = null;
-let isForceClosed = false;
 
 export function renderDashboard() {
     return `
@@ -53,9 +49,6 @@ export function renderDashboard() {
 }
 
 export function initDashboard() {
-    isForceClosed = false;
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
-
     initStats();
     initEventsOverTimeChart();
     initLogTypesChart();
@@ -66,15 +59,10 @@ export function initDashboard() {
         initDashboard();
     });
 
-    connectDashboardWebSocket();
+    const disconnectStream = connectDashboardWebSocket(handleAlertMetrics, handleSystemMetrics);
 
     return () => {
-        isForceClosed = true;
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        if (socket) {
-            socket.close();
-            socket = null;
-        }
+        disconnectStream();
     };
 }
 
@@ -129,41 +117,4 @@ function handleSystemMetrics(envelope) {
         default:
             console.debug('Unhandled message wrapper structure:', envelope);
     }
-}
-
-function connectDashboardWebSocket() {
-    if (isForceClosed) return;
-
-    const apiBaseUrl = API_CONFIG.API_BASE_URL;
-    const wsUrl = apiBaseUrl.replace(/^http/, 'ws') + '/ws/events';
-    
-    socket = new WebSocket(wsUrl);
-
-    socket.onmessage = (event) => {
-        try {
-            const envelope = JSON.parse(event.data);
-            const isAlert = envelope.rule_id || envelope.type?.toUpperCase() === 'ALERT';
-
-            if (isAlert) {
-                const alertData = envelope.rule_id ? envelope : envelope.data;
-                handleAlertMetrics(alertData);
-                return;
-            }
-
-            handleSystemMetrics(envelope);
-        } catch (err) {
-            console.error('Error parsing stream packet:', err);
-        }
-    };
-
-    socket.onclose = () => {
-        if (isForceClosed) return;
-        console.warn('Stream disconnected. Reconnecting in 5 seconds...');
-        reconnectTimeout = setTimeout(connectDashboardWebSocket, 5000);
-    };
-
-    socket.onerror = (error) => {
-        console.error('Stream network failure:', error);
-        socket.close();
-    };
 }
