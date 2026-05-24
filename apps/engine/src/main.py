@@ -1,13 +1,15 @@
+import json
+import aiosqlite
 import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
-from .database import init_db
+from .database import init_db, get_db
 from .ingest import ingest_handler
 from .parser import init_parser
 from .parser.decoders import reload_decoders
@@ -93,6 +95,42 @@ async def ws_dashboard(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         broadcaster.disconnect(websocket)
         logger.info("Dashboard unsubscribed from events")
+
+
+@app.get("/api/alerts")
+async def get_historical_alerts(
+    limit: int = 100,
+    severity: str | None = None,
+    db: aiosqlite.Connection = Depends(get_db),
+) -> list[dict]:
+    """Exposes structured historical alert logs for the dashboard backend."""
+    if severity:
+        query = (
+            "SELECT * FROM alerts WHERE severity = ? ORDER BY timestamp DESC LIMIT ?;"
+        )
+        params = (severity.upper(), limit)
+    else:
+        query = "SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?;"
+        params = (limit,)
+
+    async with db.execute(query, params) as cursor:
+        rows = await cursor.fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "rule_id": row["rule_id"],
+            "rule_name": row["rule_name"],
+            "severity": row["severity"],
+            "description": row["description"],
+            "event_count": row["event_count"],
+            "source_events": json.loads(
+                row["source_events"]
+            ),  
+        }
+        for row in rows
+    ]
 
 
 if __name__ == "__main__":
