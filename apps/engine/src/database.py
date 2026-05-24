@@ -1,6 +1,10 @@
+import json
 import aiosqlite
 from pathlib import Path
 from contextlib import asynccontextmanager
+
+from .models import Event
+from .rules.models import Alert
 
 DB_PATH = Path("siem.db")
 
@@ -38,6 +42,14 @@ async def init_db(db_path: Path = DB_PATH) -> None:
                 source_events TEXT NOT NULL
             );
         """)
+
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(severity);"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp DESC);"
+        )
+
         await db.commit()
 
 
@@ -45,3 +57,38 @@ async def get_db(db_path: Path = DB_PATH):
     """Dependency generator."""
     async with get_db_session(db_path) as db:
         yield db
+
+
+async def store_events_and_alerts(
+    event: Event, alerts: list[Alert], db_path: Path = DB_PATH
+) -> None:
+    """Inserts an ingested event and any triggered security alerts into the DB safely."""
+    async with get_db_session(db_path) as db:
+        event_json_str = event.model_dump_json()
+
+        await db.execute(
+            "INSERT INTO events (program, payload) VALUES (?, ?);",
+            (event.program, event_json_str),
+        )
+
+        for alert in alerts:
+            alert_data = alert.model_dump(mode="json")
+            source_events_str = json.dumps(alert_data.get("source_events", []))
+
+            await db.execute(
+                """
+                INSERT INTO alerts 
+                (rule_id, rule_name, severity, description, event_count, source_events) 
+                VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    alert.rule_id,
+                    alert.rule_name,
+                    alert.severity,
+                    alert.description,
+                    alert.event_count,
+                    source_events_str,
+                ),
+            )
+
+        await db.commit()

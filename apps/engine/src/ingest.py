@@ -4,6 +4,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
+from .database import store_events_and_alerts
 from .models import RawLog
 from .parser import parse
 from .rules import RuleEngine
@@ -74,6 +75,11 @@ async def _process_message(
                 )
     elif event.decoded:
         _log_event(raw_log, event.program, event.decoded)
+
+    try:
+        await store_events_and_alerts(event, alerts)
+    except Exception as db_err:
+        logger.error("Failed to write data to database: %s", db_err)
 
     if broadcaster:
         await broadcaster.broadcast(
