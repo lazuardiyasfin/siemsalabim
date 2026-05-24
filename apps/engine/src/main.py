@@ -7,6 +7,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
 from .ingest import ingest_handler
+from .parser import init_parser
+from .parser.decoders import reload_decoders
 from .rules import RuleEngine
 
 config = EngineConfig()
@@ -21,8 +23,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 broadcaster = EventBroadcaster()
+
 rules_dir = Path(__file__).parent.parent / "rules"
+decoders_dir = Path(__file__).parent.parent / "decoders"
+
 rule_engine = RuleEngine(rules_dir)
+init_parser(decoders_dir)
 
 app = FastAPI(title="siemsalabim-engine", version="0.1.0")
 
@@ -45,6 +51,14 @@ async def reload_rules() -> dict[str, object]:
     count = rule_engine.reload()
     logger.info("Rules reloaded: %d rule(s) active.", count)
     return {"status": "ok", "rules_loaded": count}
+
+
+@app.post("/decoders/reload")
+async def reload_decoders_endpoint() -> dict[str, object]:
+    """Hot-reload decoder definitions from YAML files."""
+    count = reload_decoders(decoders_dir)
+    logger.info("Decoders reloaded: %d decoder(s) active.", count)
+    return {"status": "ok", "decoders_loaded": count}
 
 
 @app.websocket("/ws/ingest")

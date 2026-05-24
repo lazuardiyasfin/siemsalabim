@@ -1,0 +1,49 @@
+decoders:
+  - id: sshd_invalid_user
+    program: sshd
+    pattern: "Invalid user (?P<user>\\S+) from (?P<src_ip>\\S+) port (?P<src_port>\\d+)"
+    fields:
+      action: invalid_user
+    int_fields: [src_port]
+
+  - id: sshd_accepted
+    program: sshd
+    pattern: "Accepted (?P<method>\\S+) for (?P<user>\\S+) from (?P<src_ip>\\S+) port (?P<src_port>\\d+)"
+    fields:
+      action: accepted
+    int_fields: [src_port]
+
+  - id: sshd_failed
+    program: sshd
+    pattern: "Failed (?P<method>\\S+) for (?:invalid user )?(?P<user>\\S+) from (?P<src_ip>\\S+) port (?P<src_port>\\d+)"
+    fields:
+      action: failed
+    int_fields: [src_port]
+
+  - id: sshd_connection_reset
+    program: sshd
+    pattern: "Connection reset by (?:authenticating )?user (?P<user>\\S+) (?P<src_ip>\\S+) port (?P<src_port>\\d+)"
+    fields:
+      action: connection_reset
+    int_fields: [src_port]
+
+  - id: sshd_disconnected
+    program: sshd
+    pattern: "Disconnected from (?:invalid user )?(?P<user>\\S+) (?P<src_ip>\\S+) port (?P<src_port>\\d+)"
+    fields:
+      action: disconnected
+    int_fields: [src_port]
+
+  - id: sshd_connection_closed
+    program: sshd
+    pattern: "Connection closed by (?:invalid user )?(?P<user>\\S+)?\\s*(?P<src_ip>\\S+) port (?P<src_port>\\d+)"
+    fields:
+      action: connection_closed
+    int_fields: [src_port]
+
+  - id: sshd_pam_session
+    program: sshd
+    pattern: "pam_unix\\(sshd:session\\): session (?P<pam_action>opened|closed) for user (?P<user>\\S+)"
+    fields: {}
+    int_fields: []
+    post_process: pam_session
