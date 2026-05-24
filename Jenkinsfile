@@ -207,7 +207,7 @@ pipeline {
                     sh '''
                         export REGISTRY_USER="ghcr.io/${GH_USER}"
                         export IMAGE_TAG="v1.0.${BUILD_NUMBER}"
-                        export VITE_API_BASE_URL="https://siemsalabim.duckdns.org/engine"
+                        export VITE_API_BASE_URL="https://siemsalabim.duckdns.org"
 
                         docker compose build
                     '''
