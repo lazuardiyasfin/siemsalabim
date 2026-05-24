@@ -26,7 +26,7 @@ export function renderLogTypesChart() {
     `;
 }
 
-export function initLogTypesChart(logVolumesData) {
+export function initLogTypesChart() {
     const ctx = document.getElementById('log-types-breakdown');
     if (!ctx) {
         return;
@@ -39,9 +39,9 @@ export function initLogTypesChart(logVolumesData) {
     logTypesChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: logVolumesData.map(row => row.type),
+            labels: [],
             datasets: [{
-                data: logVolumesData.map(row => row.volume)
+                data: []
             }]
         },
         options: {
@@ -53,8 +53,28 @@ export function initLogTypesChart(logVolumesData) {
                 },
                 tooltip: {
                     enabled: false
+                },
+                colors: {
+                    forceOverride: true
                 }
             }
         }
     });
+}
+
+export function updateLogTypeVolume(logType) {
+    if (!logTypesChart) return;
+
+    const labels = logTypesChart.data.labels;
+    const dataset = logTypesChart.data.datasets[0].data;
+    const index = labels.indexOf(logType);
+
+    if (index !== -1) {
+        dataset[index] += 1;
+    } else {
+        labels.push(logType);
+        dataset.push(1);
+    }
+
+    logTypesChart.update();
 }

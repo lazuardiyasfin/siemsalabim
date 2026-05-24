@@ -12,6 +12,8 @@ const routes = [
     ...ruleManagementRoutes
 ];
 
+let currentRoute = null;
+
 async function handleRouting() {
     const path = globalThis.location.pathname;
     const route = routes.find(r => r.path === path);
@@ -29,11 +31,17 @@ async function handleRouting() {
         return;
     }
 
+    if (currentRoute && currentRoute.leave) {
+        currentRoute.leave();
+    }   
+
     appContainer.innerHTML = route.render();
 
     if (route.init) {
         route.init();
     }
+
+    currentRoute = route;
 
     // Create icons only when on authenticated views
     if (route.requiresAuth) {
