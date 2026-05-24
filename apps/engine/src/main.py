@@ -100,9 +100,9 @@ async def ws_dashboard(websocket: WebSocket) -> None:
 
 @app.get("/api/alerts")
 async def get_historical_alerts(
+    db: Annotated[aiosqlite.Connection, Depends(get_db)],
     limit: int = 100,
     severity: str | None = None,
-    db: aiosqlite.Connection = Annotated[str, Depends(get_db)],
 ) -> list[dict]:
     """Exposes structured historical alert logs for the dashboard backend."""
     if severity:
