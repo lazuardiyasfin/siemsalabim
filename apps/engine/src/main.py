@@ -56,3 +56,14 @@ async def ws_dashboard(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         broadcaster.disconnect(websocket)
         logger.info("Dashboard unsubscribed from events")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "src.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=False,
+    )

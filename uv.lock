@@ -256,6 +256,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "uvicorn" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -265,6 +266,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.9.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
+    { name = "websockets", specifier = ">=16.0" },
 ]
 
 [[package]]
