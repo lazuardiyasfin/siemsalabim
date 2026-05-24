@@ -4,6 +4,7 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 
@@ -101,7 +102,7 @@ async def ws_dashboard(websocket: WebSocket) -> None:
 async def get_historical_alerts(
     limit: int = 100,
     severity: str | None = None,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: aiosqlite.Connection = Annotated[str, Depends(get_db)],
 ) -> list[dict]:
     """Exposes structured historical alert logs for the dashboard backend."""
     if severity:
