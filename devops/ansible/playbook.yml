@@ -3,7 +3,6 @@
   hosts: all
   become: yes
   vars:
-    # Recommended: Pass these via Ansible Vault or --extra-vars during runtime
     dashboard_password_hash: ""
     dashboard_jwt_secret_key: ""
     siem_ingest_token: ""
@@ -23,6 +22,7 @@
       pip:
         name: docker
         executable: pip3
+        extra_args: "--ignore-installed"
 
     - name: Ensure Docker service is running and enabled on boot
       service:
@@ -34,20 +34,7 @@
     - name: Deploy Nginx configuration from template
       template:
         src: templates/nginx.conf.template
-        dest: /etc/nginx/sites-available/siem.conf
-      notify: Reload Nginx
-
-    - name: Enable SIEM Nginx site
-      file:
-        src: /etc/nginx/sites-available/siem.conf
-        dest: /etc/nginx/sites-enabled/siem.conf
-        state: link
-      notify: Reload Nginx
-
-    - name: Ensure default Nginx site is removed (Optional but recommended)
-      file:
-        path: /etc/nginx/sites-enabled/default
-        state: absent
+        dest: /etc/nginx/conf.d/siemsalabim.conf
       notify: Reload Nginx
 
     - name: Ensure Nginx service is running and enabled on boot
