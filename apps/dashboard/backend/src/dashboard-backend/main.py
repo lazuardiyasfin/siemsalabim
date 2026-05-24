@@ -2,10 +2,12 @@ import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Any
+from urllib.parse import urlparse
 from pathlib import Path
 
 import jwt
+import httpx
 from fastapi import (
     Depends,
     FastAPI,
@@ -221,6 +223,47 @@ async def get_current_user(request: Request) -> dict:
         return {"username": cfg.user}
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@app.get("/api/alerts")
+async def get_historical_alerts(
+    request: Request,
+    _user: Annotated[dict, Depends(get_current_user)],
+    limit: int = 100,
+    severity: str | None = None,
+) -> list[dict]:
+    """Securely proxies historical alert data queries to the upstream engine."""
+    cfg = request.app.state.config
+
+    # Derives the HTTP URL schema from the config
+    parsed_url = urlparse(cfg.engine_url)
+    scheme = "https" if parsed_url.scheme == "wss" else "http"
+    target_url = f"{scheme}://{parsed_url.netloc}/api/alerts"
+
+    params: dict[str, Any] = {"limit": limit}
+    if severity:
+        params["severity"] = severity
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(target_url, params=params, timeout=5.0)
+            if response.status_code != 200:
+                logger.error(
+                    f"Engine response failed with status code: {response.status_code}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Invalid data state signature received from upstream service.",
+                )
+            return response.json()
+        except httpx.RequestError as exc:
+            logger.error(
+                f"Failed to communicate with engine sub-context at {exc.request.url}: {exc}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Upstream log orchestration interface is temporarily unreachable.",
+            )
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
