@@ -22,9 +22,22 @@ services:
     image: ${REGISTRY_USER}/siem-engine:${IMAGE_TAG:-latest}
     build:
       context: .
-      dockerfile: apps/dashboard/Dockerfile
+      dockerfile: apps/engine/Dockerfile
     ports:
       - "8000:8000"
     environment:
       - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
+    restart: unless-stopped
+
+  siem-exporter:
+    container_name: siem-exporter-container
+    image: ${REGISTRY_USER}/siem-exporter:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/exporter/Dockerfile
+    environment:
+      - SIEM_ENGINE_WS_URL=ws://siem-engine:8000/ws/exporter
+      - SIEM_STATE_FILE_PATH=/var/lib/exporter/state.json
+    depends_on:
+      - siem-engine
     restart: unless-stopped

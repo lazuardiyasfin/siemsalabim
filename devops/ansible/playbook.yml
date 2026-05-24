@@ -1,7 +1,102 @@
 ---
-- name: Playbook Testing
-  hosts: ec2-siem-1
+- name: Deploy SIEM Engine and Dashboard to EC2
+  hosts: all
+  become: yes
+  vars:
+    # Recommended: Pass these via Ansible Vault or --extra-vars during runtime
+    dashboard_password_hash: ""
+    dashboard_jwt_secret_key: ""
+    siem_ingest_token: ""
+
   tasks:
-    - name: Playbook Echo Test
-      ansible.builtin.shell: |
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] Playbook YML isn't it" >> ~/log.txt
+    # 1. Install Dependencies (Idempotent: skips if already installed)
+    - name: Ensure Nginx and Docker Python library are installed
+      apt:
+        name:
+          - nginx
+          - docker.io
+          - python3-docker # Required by Ansible's docker_container module
+        state: present
+        update_cache: yes
+    
+    - name: Ensure Docker service is running and enabled on boot
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # 2. Configure Nginx
+    - name: Deploy Nginx configuration from template
+      template:
+        src: templates/nginx.conf.template
+        dest: /etc/nginx/sites-available/siem.conf
+      notify: Reload Nginx
+
+    - name: Enable SIEM Nginx site
+      file:
+        src: /etc/nginx/sites-available/siem.conf
+        dest: /etc/nginx/sites-enabled/siem.conf
+        state: link
+      notify: Reload Nginx
+
+    - name: Ensure default Nginx site is removed (Optional but recommended)
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload Nginx
+
+    - name: Ensure Nginx service is running and enabled on boot
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    # 3. Docker Infrastructure & Deployment
+    - name: Create SIEM Docker network
+      docker_network:
+        name: siem_network
+        state: present
+
+    - name: Pull SIEM Engine Docker Image
+      docker_image:
+        name: ghcr.io/ilhmpbta/siem-engine:latest
+        source: pull
+
+    - name: Pull SIEM Dashboard Docker Image
+      docker_image:
+        name: ghcr.io/ilhmpbta/siem-dashboard:latest
+        source: pull
+
+    - name: Run SIEM Engine Container
+      docker_container:
+        name: siem-engine
+        image: ghcr.io/ilhmpbta/siem-engine:latest
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: siem_network
+        ports:
+          - "8000:8000"
+        env:
+          SIEM_INGEST_TOKEN: "{{ siem_ingest_token }}"
+
+    - name: Run SIEM Dashboard Container
+      docker_container:
+        name: siem-dashboard
+        image: ghcr.io/ilhmpbta/siem-dashboard:latest
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: siem_network
+        ports:
+          - "8001:8001"
+        env:
+          DASHBOARD_PASSWORD_HASH: "{{ dashboard_password_hash }}"
+          DASHBOARD_JWT_SECRET_KEY: "{{ dashboard_jwt_secret_key }}"
+          DASHBOARD_ENGINE_URL: "ws://siem-engine:8000/ws/dashboard"
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
