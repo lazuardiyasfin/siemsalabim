@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from .models import Event
 from .rules.models import Alert
 
-DB_PATH = Path("siem.db")
+DB_PATH = Path("data/siem.db")
 
 
 @asynccontextmanager
