@@ -134,7 +134,7 @@ function handleSystemMetrics(envelope) {
 function connectDashboardWebSocket() {
     if (isForceClosed) return;
 
-    const apiBaseUrl = API_CONFIG.BASE_URL || 'http://localhost:8001';
+    const apiBaseUrl = API_CONFIG.API_BASE_URL;
     const wsUrl = apiBaseUrl.replace(/^http/, 'ws') + '/ws/events';
     
     socket = new WebSocket(wsUrl);
