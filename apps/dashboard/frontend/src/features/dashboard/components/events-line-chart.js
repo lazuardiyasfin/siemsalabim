@@ -91,9 +91,7 @@ export function addEventToTimeline(timestampString) {
     const dataset = eventsOverTimeChart.data.datasets[0].data;
     const index = labels.indexOf(timeLabel);
 
-    if (index !== -1) {
-        dataset[index] += 1;
-    } else {
+    if (index === -1) {
         labels.push(timeLabel);
         dataset.push(1);
 
@@ -101,6 +99,8 @@ export function addEventToTimeline(timestampString) {
             labels.shift();
             dataset.shift();
         }
+    } else {
+        dataset[index] += 1;
     }
 
     eventsOverTimeChart.update();

@@ -31,9 +31,7 @@ async function handleRouting() {
         return;
     }
 
-    if (currentRoute && currentRoute.leave) {
-        currentRoute.leave();
-    }   
+    currentRoute?.leave?.();
 
     appContainer.innerHTML = route.render();
 

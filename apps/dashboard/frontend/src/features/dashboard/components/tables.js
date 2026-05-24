@@ -49,7 +49,6 @@ export function appendAlertsRow(alertData) {
     const tbody = document.getElementById('alerts-table-body');
     if (!tbody || !alertData) return;
 
-    // Remove the "Waiting for live alerts" placeholder row if it exists
     document.getElementById('table-empty-row')?.remove();
 
     const row = document.createElement('tr');
@@ -66,10 +65,8 @@ export function appendAlertsRow(alertData) {
         <td>${alertData.description || ''}</td>
     `;
 
-    // Prepend to show the newest alerts at the top of the table
     tbody.insertBefore(row, tbody.firstChild);
 
-    // Optional: Keep the table performance stable by limiting to top 50 rows
     if (tbody.children.length > 50) {
         tbody.removeChild(tbody.lastChild);
     }

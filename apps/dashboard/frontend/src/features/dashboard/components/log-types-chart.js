@@ -69,11 +69,11 @@ export function updateLogTypeVolume(logType) {
     const dataset = logTypesChart.data.datasets[0].data;
     const index = labels.indexOf(logType);
 
-    if (index !== -1) {
-        dataset[index] += 1;
-    } else {
+    if (index === -1) {
         labels.push(logType);
         dataset.push(1);
+    } else {
+        dataset[index] += 1;
     }
 
     logTypesChart.update();

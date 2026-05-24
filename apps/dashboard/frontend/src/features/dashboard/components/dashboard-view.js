@@ -78,6 +78,59 @@ export function initDashboard() {
     };
 }
 
+function handleAlertMetrics(alertData) {
+    if (!alertData) return;
+
+    try { 
+        incrementTotalAlerts(); 
+    } catch (err) { console.error('Failed to update Stats counter:', err); }
+    
+    try {
+        const severity = alertData.severity?.toUpperCase();
+        if (severity === 'CRITICAL' || severity === 'HIGH') {
+            incrementCriticalAlerts();
+        }
+    } catch (err) { console.error('Failed to update Critical counter:', err); }
+    
+    try {
+        const program = alertData.source_events?.[0]?.program;
+        if (program) {
+            updateLogTypeVolume(program);
+        }
+    } catch (err) { console.error('Failed to update Doughnut Chart:', err); }
+
+    try {
+        if (alertData.timestamp) {
+            addEventToTimeline(alertData.timestamp);
+        }
+    } catch (err) { console.error('Failed to update Timeline Line Chart:', err); }
+
+    try {
+        appendAlertsRow(alertData);
+    } catch (err) { console.error('Failed to append Table Row:', err); }
+
+    try {
+        const ip = alertData.source_events?.[0]?.decoded?.src_ip;
+        if (alertData.lat && alertData.lon) {
+            addAttackerLocation(alertData.lat, alertData.lon, ip);
+        }
+    } catch (err) { console.error('Failed to update Map marker:', err); }
+}
+
+function handleSystemMetrics(envelope) {
+    const messageType = envelope.type?.toUpperCase();
+    switch (messageType) {
+        case 'EPS_UPDATE':
+            updateEPS(envelope.data?.value || envelope.value);
+            break;
+        case 'EXPORTER_STATUS':
+            updateActiveExporters(envelope.data?.count || envelope.count);
+            break;
+        default:
+            console.debug('Unhandled message wrapper structure:', envelope);
+    }
+}
+
 function connectDashboardWebSocket() {
     if (isForceClosed) return;
 
@@ -89,62 +142,15 @@ function connectDashboardWebSocket() {
     socket.onmessage = (event) => {
         try {
             const envelope = JSON.parse(event.data);
-            
-            const alertData = envelope.rule_id ? envelope : envelope.data;
             const isAlert = envelope.rule_id || envelope.type?.toUpperCase() === 'ALERT';
 
-            if (isAlert && alertData) {
-                try { 
-                    incrementTotalAlerts(); 
-                } catch (err) { console.error('Failed to update Stats counter:', err); }
-                
-                try {
-                    const severity = alertData.severity?.toUpperCase();
-                    if (severity === 'CRITICAL' || severity === 'HIGH') {
-                        incrementCriticalAlerts();
-                    }
-                } catch (err) { console.error('Failed to update Critical counter:', err); }
-                
-                try {
-                    const program = alertData.source_events?.[0]?.program;
-                    if (program) {
-                        updateLogTypeVolume(program);
-                    }
-                } catch (err) { console.error('Failed to update Doughnut Chart:', err); }
-
-                try {
-                    if (alertData.timestamp) {
-                        addEventToTimeline(alertData.timestamp);
-                    }
-                } catch (err) { console.error('Failed to update Timeline Line Chart:', err); }
-
-                try {
-                    appendAlertsRow(alertData);
-                } catch (err) { console.error('Failed to append Table Row:', err); }
-
-                try {
-                    const ip = alertData.source_events?.[0]?.decoded?.src_ip;
-                    const lat = alertData.lat;
-                    const lon = alertData.lon;
-                    if (lat && lon) {
-                        addAttackerLocation(lat, lon, ip);
-                    }
-                } catch (err) { console.error('Failed to update Map marker:', err); }
-                
+            if (isAlert) {
+                const alertData = envelope.rule_id ? envelope : envelope.data;
+                handleAlertMetrics(alertData);
                 return;
             }
 
-            const messageType = envelope.type?.toUpperCase();
-            switch (messageType) {
-                case 'EPS_UPDATE':
-                    updateEPS(envelope.data?.value || envelope.value);
-                    break;
-                case 'EXPORTER_STATUS':
-                    updateActiveExporters(envelope.data?.count || envelope.count);
-                    break;
-                default:
-                    console.debug('Unhandled message wrapper structure:', envelope);
-            }
+            handleSystemMetrics(envelope);
         } catch (err) {
             console.error('Error parsing stream packet:', err);
         }

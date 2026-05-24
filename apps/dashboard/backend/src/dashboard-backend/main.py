@@ -182,7 +182,14 @@ async def ws_events(websocket: WebSocket) -> None:
         state.connected_frontends.discard(websocket)
 
 
-@app.get("/api/auth/me")
+@app.get(
+    "/api/auth/me",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Session initialization failed due to missing or invalid credentials.",
+        }
+    },
+)
 async def get_current_user(request: Request) -> dict:
     token = request.cookies.get("access_token")
     if not token:
