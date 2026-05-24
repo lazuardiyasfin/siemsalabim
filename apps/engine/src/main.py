@@ -39,6 +39,14 @@ async def stats() -> dict[str, int]:
     return {"active_dashboards": broadcaster.get_connection_count()}
 
 
+@app.post("/rules/reload")
+async def reload_rules() -> dict[str, object]:
+    """Hot-reload rule definitions from YAML files."""
+    count = rule_engine.reload()
+    logger.info("Rules reloaded: %d rule(s) active.", count)
+    return {"status": "ok", "rules_loaded": count}
+
+
 @app.websocket("/ws/ingest")
 async def ws_ingest(websocket: WebSocket) -> None:
     """WebSocket endpoint for log ingestion from exporters."""
