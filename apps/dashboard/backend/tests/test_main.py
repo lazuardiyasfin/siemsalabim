@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+import httpx
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
@@ -113,8 +114,8 @@ async def test_lifespan_shutdown():
         async with lifespan(test_app):
             pass
 
-        mock_close_geoip.assert_called_once()
-        mock_engine_instance.disconnect.assert_called_once()
+    mock_close_geoip.assert_called_once()
+    mock_engine_instance.disconnect.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -177,7 +178,7 @@ async def test_stats_endpoint():
 
 @pytest_asyncio.fixture
 async def client():
-    """Fixture untuk menyediakan AsyncClient HTTPX."""
+    """Fixture providing an HTTPX AsyncClient instance."""
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://localhost"
     ) as ac:
@@ -186,7 +187,7 @@ async def client():
 
 @pytest.fixture
 def mock_config():
-    """Fixture untuk menyediakan konfigurasi aplikasi."""
+    """Fixture providing the application configuration instance."""
     return config
 
 
@@ -223,3 +224,113 @@ async def test_get_current_user_invalid_token(client: AsyncClient):
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Invalid token"
+
+
+@pytest.mark.asyncio
+async def test_get_historical_alerts_success(client: AsyncClient, mock_config):
+    """Should forward historical alerts payload when upstream engine responds with 200 OK."""
+    from dashboard_backend.security import create_access_token
+
+    token = create_access_token(
+        data={"sub": mock_config.user}, secret_key=mock_config.jwt_secret_key
+    )
+    client.cookies.set("access_token", token)
+
+    mock_alerts = [{"id": 1, "rule_id": "brute_force", "severity": "HIGH"}]
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = mock_alerts
+
+    # Setup the internal client mock
+    mock_inner_client = AsyncMock()
+    mock_inner_client.get.return_value = mock_response
+
+    # Setup the async context manager wrappers
+    mock_client_instance = MagicMock()
+    mock_client_instance.__aenter__ = AsyncMock(return_value=mock_inner_client)
+    mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+
+    # Patch only where AsyncClient is instantiated inside main.py
+    with patch(
+        "dashboard_backend.main.httpx.AsyncClient", return_value=mock_client_instance
+    ):
+        response = await client.get("/api/alerts?limit=5&severity=HIGH")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == mock_alerts
+        mock_inner_client.get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_historical_alerts_upstream_error(client: AsyncClient, mock_config):
+    """Should return 502 Bad Gateway if the upstream engine encounters an internal server error."""
+    from dashboard_backend.security import create_access_token
+
+    token = create_access_token(
+        data={"sub": mock_config.user}, secret_key=mock_config.jwt_secret_key
+    )
+    client.cookies.set("access_token", token)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+
+    mock_inner_client = AsyncMock()
+    mock_inner_client.get.return_value = mock_response
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.__aenter__ = AsyncMock(return_value=mock_inner_client)
+    mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+
+    with patch(
+        "dashboard_backend.main.httpx.AsyncClient", return_value=mock_client_instance
+    ):
+        response = await client.get("/api/alerts")
+
+        assert response.status_code == status.HTTP_502_BAD_GATEWAY
+        assert (
+            response.json()["detail"]
+            == "Invalid data state signature received from upstream service."
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_historical_alerts_network_failure(client: AsyncClient, mock_config):
+    """Should return 503 Service Unavailable if communication with the engine fails at the network layer."""
+    from dashboard_backend.security import create_access_token
+
+    token = create_access_token(
+        data={"sub": mock_config.user}, secret_key=mock_config.jwt_secret_key
+    )
+    client.cookies.set("access_token", token)
+
+    # Create a dummy request object to prevent the internal httpx property error
+    mock_request = httpx.Request("GET", "http://localhost:8000/api/alerts")
+
+    mock_inner_client = AsyncMock()
+    mock_inner_client.get.side_effect = httpx.RequestError(
+        "Connection refused", request=mock_request
+    )
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.__aenter__ = AsyncMock(return_value=mock_inner_client)
+    mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+
+    with patch(
+        "dashboard_backend.main.httpx.AsyncClient", return_value=mock_client_instance
+    ):
+        response = await client.get("/api/alerts")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert (
+            response.json()["detail"]
+            == "Upstream log orchestration interface is temporarily unreachable."
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_historical_alerts_unauthorized(client: AsyncClient):
+    """Should reject incoming traffic with 401 Unauthorized if the required session token is omitted."""
+    response = await client.get("/api/alerts")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "No token found"
