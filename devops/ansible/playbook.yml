@@ -43,7 +43,15 @@
         state: started
         enabled: yes
 
-# 3. Docker Infrastructure & Deployment
+    # 3. Docker Infrastructure & Deployment
+    - name: Create persistent directory for SIEM database
+      file:
+        path: /opt/siem/data
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: '0755'
+
     - name: Create SIEM Docker network
       docker_network:
         name: siem_network
@@ -73,6 +81,8 @@
           - "8000:8000"
         env:
           SIEM_INGEST_TOKEN: "{{ siem_ingest_token }}"
+        volumes:
+          - /opt/siem/data:/app/apps/engine/data
 
     - name: Run SIEM Dashboard Container
       docker_container:
