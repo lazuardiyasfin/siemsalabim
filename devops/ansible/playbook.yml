@@ -43,7 +43,7 @@
         state: started
         enabled: yes
 
-    # 3. Docker Infrastructure & Deployment
+# 3. Docker Infrastructure & Deployment
     - name: Create SIEM Docker network
       docker_network:
         name: siem_network
@@ -51,18 +51,18 @@
 
     - name: Pull SIEM Engine Docker Image
       docker_image:
-        name: ghcr.io/ilhmpbta/siem-engine:latest
+        name: "ghcr.io/ilhmpbta/siem-engine:{{ image_tag }}"
         source: pull
 
     - name: Pull SIEM Dashboard Docker Image
       docker_image:
-        name: ghcr.io/ilhmpbta/siem-dashboard:latest
+        name: "ghcr.io/ilhmpbta/siem-dashboard:{{ image_tag }}"
         source: pull
 
     - name: Run SIEM Engine Container
       docker_container:
         name: siem-engine
-        image: ghcr.io/ilhmpbta/siem-engine:latest
+        image: "ghcr.io/ilhmpbta/siem-engine:{{ image_tag }}"
         state: started
         restart_policy: unless-stopped
         networks:
@@ -75,7 +75,7 @@
     - name: Run SIEM Dashboard Container
       docker_container:
         name: siem-dashboard
-        image: ghcr.io/ilhmpbta/siem-dashboard:latest
+        image: "ghcr.io/ilhmpbta/siem-dashboard:{{ image_tag }}"
         state: started
         restart_policy: unless-stopped
         networks:
