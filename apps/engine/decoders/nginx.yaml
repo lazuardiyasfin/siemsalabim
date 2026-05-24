@@ -1,0 +1,14 @@
+decoders:
+  - id: nginx_combined
+    log_format: nginx_access
+    pattern: '^(?P<client_ip>\S+)\s+\S+\s+\S+\s+\[(?P<timestamp>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]*)"\s+(?P<status>\d{3})\s+(?P<bytes>\d+)\s+"(?P<referer>[^"]*)"\s+"(?P<user_agent>[^"]*)"'
+    int_fields: [status, bytes]
+    dash_as_null: [referer, user_agent]
+
+  - id: nginx_malformed
+    log_format: nginx_access
+    pattern: '^(?P<client_ip>\S+)\s+\S+\s+\S+\s+\[(?P<timestamp>[^\]]+)\]\s+"(?P<raw_request>[^"]*)"\s+(?P<status>\d{3})\s+(?P<bytes>\d+)'
+    int_fields: [status, bytes]
+    fields:
+      method: null
+      path: null
