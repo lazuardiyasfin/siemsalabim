@@ -15,8 +15,8 @@ server {
     listen 443 ssl;
     server_name siemsalabim.duckdns.org;
 
-    ssl_certificate     /etc/letsencrypt/live/siemsalabim.duckdns.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/siemsalabim.duckdns.org/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/siemsalabim.duckdns.org-0001/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/siemsalabim.duckdns.org-0001/privkey.pem;
 
     location / {        
         proxy_pass http://localhost:8001/;
