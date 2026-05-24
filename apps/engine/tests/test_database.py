@@ -1,10 +1,17 @@
+import os
+
+os.environ["SIEM_INGEST_TOKEN"] = "mock_secret_token"
+
 import json
 import pytest
 import aiosqlite
 from pathlib import Path
 from unittest.mock import MagicMock
+from fastapi.testclient import TestClient
+
 
 from src.database import init_db, get_db, store_events_and_alerts
+from src.main import app
 
 
 @pytest.mark.asyncio
@@ -94,3 +101,45 @@ async def test_store_events_and_alerts_inserts_data(tmp_path: Path):
             assert json.loads(alert_row["source_events"]) == [
                 {"program": "sshd", "status": "failed"}
             ]
+
+
+def test_get_historical_alerts_endpoint():
+    """Test the API endpoint using FastAPI's TestClient and dependency overrides."""
+
+    class MockCursor:
+        async def fetchall(self):
+            return [
+                {
+                    "id": 1,
+                    "timestamp": "2026-05-24 23:59:00",
+                    "rule_id": "auth-01",
+                    "rule_name": "Brute Force",
+                    "severity": "HIGH",
+                    "description": "Failed login",
+                    "event_count": 3,
+                    "source_events": "[]",
+                }
+            ]
+
+    class MockAsyncContext:
+        """Simulates the asynchronous context manager behavior of aiosqlite execution."""
+
+        async def __aenter__(self):
+            return MockCursor()
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class MockDB:
+        def execute(self, query, params=None):
+            return MockAsyncContext()
+
+    app.dependency_overrides[get_db] = lambda: MockDB()
+
+    client = TestClient(app)
+    response = client.get("/api/alerts?severity=HIGH")
+
+    assert response.status_code == 200
+    assert response.json()[0]["rule_id"] == "auth-01"
+
+    app.dependency_overrides.clear()
