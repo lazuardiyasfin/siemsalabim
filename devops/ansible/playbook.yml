@@ -64,6 +64,7 @@
         name: siem-engine
         image: "ghcr.io/ilhmpbta/siem-engine:latest"
         pull: true
+        recreate: true
         state: started
         restart_policy: unless-stopped
         networks:
@@ -78,6 +79,7 @@
         name: siem-dashboard
         image: "ghcr.io/ilhmpbta/siem-dashboard:latest"
         pull: true
+        recreate: true
         state: started
         restart_policy: unless-stopped
         networks:
