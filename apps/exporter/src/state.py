@@ -16,13 +16,11 @@ class FileState:
 class StateManager:
     def __init__(self, state_file_path: Path) -> None:
         self._path = state_file_path
+        self._extra_paths_path = state_file_path.with_name("extra_paths.json")
         self._states: dict[str, FileState] = {}
 
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
-
     def load(self) -> None:
+        """Load offset state from the JSON file on disk."""
         if not self._path.exists():
             logger.info("No existing state file at %s, starting fresh.", self._path)
             return
@@ -45,6 +43,7 @@ class StateManager:
             self._states.clear()
 
     def save(self) -> None:
+        """Flush current offset state to disk atomically."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = self._path.with_suffix(".tmp")
         data = {
@@ -54,9 +53,36 @@ class StateManager:
         tmp_path.replace(self._path)
         logger.debug("State saved to %s.", self._path)
 
-    # Offset management
+    def load_extra_paths(self) -> list[str]:
+        """Load extra watch paths from disk. Returns empty list if none."""
+        if not self._extra_paths_path.exists():
+            return []
+
+        try:
+            raw = self._extra_paths_path.read_text(encoding="utf-8")
+            paths = json.loads(raw)
+            if isinstance(paths, list):
+                logger.info(
+                    "Loaded %d extra path(s) from %s.",
+                    len(paths),
+                    self._extra_paths_path,
+                )
+                return [str(p) for p in paths]
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.warning("Corrupt extra paths file: %s", exc)
+
+        return []
+
+    def save_extra_paths(self, paths: list[str]) -> None:
+        """Persist extra watch paths to disk atomically."""
+        self._extra_paths_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self._extra_paths_path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(paths, indent=2), encoding="utf-8")
+        tmp_path.replace(self._extra_paths_path)
+        logger.info("Saved %d extra path(s) to %s.", len(paths), self._extra_paths_path)
 
     def get_offset(self, file_path: str) -> int:
+        """Return the current read offset for *file_path*."""
         current_inode = self._get_inode(file_path)
         state = self._states.get(file_path)
 
@@ -77,6 +103,7 @@ class StateManager:
         return state.offset
 
     def set_offset(self, file_path: str, offset: int) -> None:
+        """Update the read offset for *file_path*."""
         state = self._states.get(file_path)
         if state is None:
             self._states[file_path] = FileState(
@@ -85,10 +112,9 @@ class StateManager:
         else:
             state.offset = offset
 
-    # Internals
-
     @staticmethod
     def _get_inode(file_path: str) -> int:
+        """Return the inode number, or 0 if inaccessible."""
         try:
             return os.stat(file_path).st_ino
         except OSError:

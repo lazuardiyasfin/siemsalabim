@@ -5,6 +5,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
 from .database import store_events_and_alerts
+from .exporter_manager import ExporterManager
 from .models import RawLog
 from .parser import parse
 from .rules import RuleEngine
@@ -92,6 +93,7 @@ async def ingest_handler(
     config: EngineConfig,
     rule_engine: RuleEngine,
     broadcaster: EventBroadcaster | None = None,
+    exporter_mgr: ExporterManager | None = None,
 ) -> None:
     """Handle a single exporter WebSocket connection."""
     await websocket.accept()
@@ -100,12 +102,18 @@ async def ingest_handler(
         return
 
     client = websocket.client
+    exporter_id = ""
     logger.info("Exporter connected: %s", client)
 
     try:
         while True:
             data = await websocket.receive_json()
             try:
+                if not exporter_id:
+                    exporter_id = str(data.get("exporter_id", ""))
+                    if exporter_id and exporter_mgr:
+                        exporter_mgr.register(exporter_id, websocket)
+
                 await _process_message(data, rule_engine, broadcaster)
             except Exception as exc:
                 logger.warning("Malformed message from %s: %s", client, exc)
@@ -113,3 +121,6 @@ async def ingest_handler(
                 return
     except WebSocketDisconnect:
         logger.info("Exporter disconnected: %s", client)
+    finally:
+        if exporter_id and exporter_mgr:
+            exporter_mgr.unregister(exporter_id)
