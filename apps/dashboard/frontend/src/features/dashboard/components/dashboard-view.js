@@ -1,5 +1,5 @@
 import '../assets/dashboard.css'
-import { getHistoricalAlerts } from '../api/get-alerts.js';
+import { getHistoricalAlerts, getDashboardStats } from '../api/get-alerts.js';
 import { connectDashboardWebSocket } from '../api/stream-events.js';
 import { 
     renderStats, 
@@ -21,12 +21,11 @@ export function renderDashboard() {
         <menu class="dashboard-toolbar">
             <div class="time-filter">
                 <select class="select-time-preset">
-                    <option value="1h">Last 1 hour</option>
-                    <option value="24h" selected>Last 24 hours</option>
+                    <option value="1h" selected>Last 1 hour</option>
+                    <option value="24h">Last 24 hours</option>
                     <option value="7d">Last 7 days</option>
                     <option value="30d">Last 30 days</option>
                 </select>
-                <button>Show Dates</button>
             </div>
             
             <button id="dashboard-refresh-btn">Refresh</button>
@@ -49,6 +48,8 @@ export function renderDashboard() {
     `;
 }
 
+let activeStreamDisconnect = null;
+
 export function initDashboard() {
     initStats();
     initEventsOverTimeChart();
@@ -56,9 +57,20 @@ export function initDashboard() {
     initAlertsTable([]);
     initAttackerMap();
 
-    async function seedHistoricalData() {
+    async function seedDashboardData() {
         try {
-            const historicalData = await getHistoricalAlerts();
+            const timeDropdown = document.querySelector('.select-time-preset');
+            const selectedRange = timeDropdown ? timeDropdown.value : "1h";
+
+            const [historicalData, initialStats] = await Promise.all([
+                getHistoricalAlerts(selectedRange),
+                getDashboardStats()
+            ]);
+
+            if (initialStats && typeof initialStats.active_exporters !== 'undefined') {
+                updateActiveExporters(initialStats.active_exporters);
+            }
+
             initAlertsTable(historicalData);
 
             historicalData.forEach(alert => {
@@ -100,17 +112,34 @@ export function initDashboard() {
         }
     }
 
-    seedHistoricalData();
+    seedDashboardData();
+
+    const timeDropdown = document.querySelector('.select-time-preset');
+    if (timeDropdown) {
+        timeDropdown.onchange = () => {
+            initStats(); // Reset text values to 0 before loading the new timeframe
+            seedDashboardData();
+        };
+    }
 
     const refreshBtn = document.getElementById('dashboard-refresh-btn');
     if (refreshBtn) {
-        refreshBtn.onclick = () => initDashboard();
+        refreshBtn.onclick = () => {
+            initStats(); // Reset text values to 0 before executing refresh
+            seedDashboardData();
+        };
     }
 
-    const disconnectStream = connectDashboardWebSocket(handleAlertMetrics, handleSystemMetrics);
+    if (activeStreamDisconnect) {
+        activeStreamDisconnect();
+    }
+    activeStreamDisconnect = connectDashboardWebSocket(handleAlertMetrics, handleSystemMetrics);
 
     return () => {
-        disconnectStream();
+        if (activeStreamDisconnect) {
+            activeStreamDisconnect();
+            activeStreamDisconnect = null;
+        }
     };
 }
 
