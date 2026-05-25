@@ -67,7 +67,7 @@ export function initDashboard() {
                 getDashboardStats()
             ]);
 
-            if (initialStats && typeof initialStats.active_exporters !== 'undefined') {
+            if (initialStats?.active_exporters !== undefined) {
                 updateActiveExporters(initialStats.active_exporters);
             }
 
