@@ -5,6 +5,7 @@ import mockData from '../../testing/mocks/mockRules.json'
 export const ruleManagementRoutes = [
     {
         path: '/rules',
+        title: 'Manage Rules - Siemsalabim',
         render: () => renderAppLayout(renderRuleManagement()),
         init: () => initRuleManagement(mockData),
         requiresAuth: true
