@@ -44,3 +44,49 @@ class TestWebSocketClientConnect:
 
         await asyncio.sleep(0.1)
         assert task.done()
+
+
+class TestWebSocketClientBiDirectional:
+    """Tests for bi-directional WebSocket features."""
+
+    def test_command_callback_stored(self) -> None:
+        """Command callback is stored on init."""
+
+        def my_callback(cmd: dict[str, object]) -> None:
+            pass
+
+        client = WebSocketClient(
+            "ws://localhost:8000", "token", command_callback=my_callback
+        )
+
+        assert client._on_command is my_callback
+
+    def test_no_callback_default(self) -> None:
+        """Default has no command callback."""
+        client = WebSocketClient("ws://localhost:8000", "token")
+
+        assert client._on_command is None
+
+    def test_enqueue_multiple(self) -> None:
+        """Multiple messages can be enqueued."""
+        client = WebSocketClient("ws://localhost:8000", "token")
+
+        for i in range(100):
+            assert client.enqueue(f"msg-{i}") is True
+
+    @pytest.mark.asyncio
+    async def test_start_stop(self) -> None:
+        """Client can be stopped after start."""
+        client = WebSocketClient("ws://localhost:19999", "token")
+        task = asyncio.create_task(client.start())
+
+        await asyncio.sleep(0.1)
+        client.stop()
+        await asyncio.sleep(0.2)
+
+        assert not client._running
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
