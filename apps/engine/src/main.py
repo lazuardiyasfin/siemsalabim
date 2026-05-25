@@ -1,17 +1,12 @@
-import json
 import logging
 import sys
-from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
 
-import aiosqlite
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
-from .database import get_db, init_db
 from .exporter_manager import ExporterManager
 from .ingest import ingest_handler
 from .parser import init_parser
@@ -39,19 +34,7 @@ rule_engine = RuleEngine(rules_dir)
 init_parser(decoders_dir)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Handles application startup and shutdown tasks."""
-    try:
-        await init_db()
-        logger.info("Database verification and table creation complete.")
-    except Exception as e:
-        logger.error("Critical error during database initialization: %s", e)
-        raise
-    yield
-
-
-app = FastAPI(title="siemsalabim-engine", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="siemsalabim-engine", version="0.1.0")
 
 
 # ---- Request/response models ----
@@ -109,54 +92,6 @@ async def get_log_paths() -> dict[str, object]:
         "status": "ok",
         "exporters": exporter_mgr.get_exporter_ids(),
     }
-
-
-@app.get("/api/alerts")
-async def get_historical_alerts(
-    db: Annotated[aiosqlite.Connection, Depends(get_db)],
-    range: str = "1h",
-    severity: str | None = None,
-) -> list[dict]:
-    """Exposes structured historical alert logs filtered by relative time ranges."""
-    range_mapping = {
-        "1h": "-1 hours",
-        "24h": "-24 hours",
-        "7d": "-7 days",
-        "30d": "-30 days",
-    }
-    time_modifier = range_mapping.get(range, "-24 hours")
-
-    if severity:
-        query = (
-            "SELECT * FROM alerts "
-            "WHERE timestamp >= datetime('now', ?) AND severity = ? "
-            "ORDER BY timestamp DESC;"
-        )
-        params = (time_modifier, severity.upper())
-    else:
-        query = (
-            "SELECT * FROM alerts "
-            "WHERE timestamp >= datetime('now', ?) "
-            "ORDER BY timestamp DESC;"
-        )
-        params = (time_modifier,)
-
-    async with db.execute(query, params) as cursor:
-        rows = await cursor.fetchall()
-
-    return [
-        {
-            "id": row["id"],
-            "timestamp": row["timestamp"],
-            "rule_id": row["rule_id"],
-            "rule_name": row["rule_name"],
-            "severity": row["severity"],
-            "description": row["description"],
-            "event_count": row["event_count"],
-            "source_events": json.loads(row["source_events"]),
-        }
-        for row in rows
-    ]
 
 
 # ---- WebSocket endpoints ----
