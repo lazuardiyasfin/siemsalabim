@@ -101,18 +101,33 @@ async def ws_dashboard(websocket: WebSocket) -> None:
 @app.get("/api/alerts")
 async def get_historical_alerts(
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
-    limit: int = 100,
+    range: str = "1h",
     severity: str | None = None,
 ) -> list[dict]:
-    """Exposes structured historical alert logs for the dashboard backend."""
+    """Exposes structured historical alert logs filtered by relative time ranges."""
+
+    range_mapping = {
+        "1h": "-1 hours",
+        "24h": "-24 hours",
+        "7d": "-7 days",
+        "30d": "-30 days",
+    }
+    time_modifier = range_mapping.get(range, "-24 hours")
+
     if severity:
         query = (
-            "SELECT * FROM alerts WHERE severity = ? ORDER BY timestamp DESC LIMIT ?;"
+            "SELECT * FROM alerts "
+            "WHERE timestamp >= datetime('now', ?) AND severity = ? "
+            "ORDER BY timestamp DESC;"
         )
-        params = (severity.upper(), limit)
+        params = (time_modifier, severity.upper())
     else:
-        query = "SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?;"
-        params = (limit,)
+        query = (
+            "SELECT * FROM alerts "
+            "WHERE timestamp >= datetime('now', ?) "
+            "ORDER BY timestamp DESC;"
+        )
+        params = (time_modifier,)
 
     async with db.execute(query, params) as cursor:
         rows = await cursor.fetchall()

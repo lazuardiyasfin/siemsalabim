@@ -48,6 +48,10 @@
   background-color: var(--color-card-bg);
 }
 
+.dashboard-toolbar button:hover {
+  cursor: pointer;
+}
+
 .dashboard-toolbar button:last-of-type {
   background-color: var(--color-primary-blue);
   color: var(--color-text-light);

@@ -1,5 +1,6 @@
 import '../assets/dashboard.css'
-import { API_CONFIG } from "../../../config/env.js";
+import { getHistoricalAlerts, getDashboardStats } from '../api/get-alerts.js';
+import { connectDashboardWebSocket } from '../api/stream-events.js';
 import { 
     renderStats, 
     initStats, 
@@ -13,10 +14,6 @@ import { renderLogTypesChart, initLogTypesChart, updateLogTypeVolume } from './l
 import { renderAlertsTable, initAlertsTable, appendAlertsRow } from './tables.js';
 import { renderMap, initAttackerMap, addAttackerLocation } from './map.js';
 
-let socket = null;
-let reconnectTimeout = null;
-let isForceClosed = false;
-
 export function renderDashboard() {
     return `
     <div class="dashboard-header">
@@ -24,12 +21,11 @@ export function renderDashboard() {
         <menu class="dashboard-toolbar">
             <div class="time-filter">
                 <select class="select-time-preset">
-                    <option value="1h">Last 1 hour</option>
-                    <option value="24h" selected>Last 24 hours</option>
+                    <option value="1h" selected>Last 1 hour</option>
+                    <option value="24h">Last 24 hours</option>
                     <option value="7d">Last 7 days</option>
                     <option value="30d">Last 30 days</option>
                 </select>
-                <button>Show Dates</button>
             </div>
             
             <button id="dashboard-refresh-btn">Refresh</button>
@@ -52,28 +48,97 @@ export function renderDashboard() {
     `;
 }
 
-export function initDashboard() {
-    isForceClosed = false;
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+let activeStreamDisconnect = null;
 
+export function initDashboard() {
     initStats();
     initEventsOverTimeChart();
     initLogTypesChart();
     initAlertsTable([]);
     initAttackerMap();
 
-    document.getElementById('dashboard-refresh-btn')?.addEventListener('click', () => {
-        initDashboard();
-    });
+    async function seedDashboardData() {
+        try {
+            const timeDropdown = document.querySelector('.select-time-preset');
+            const selectedRange = timeDropdown ? timeDropdown.value : "1h";
 
-    connectDashboardWebSocket();
+            const [historicalData, initialStats] = await Promise.all([
+                getHistoricalAlerts(selectedRange),
+                getDashboardStats()
+            ]);
+
+            if (initialStats?.active_exporters !== undefined) {
+                updateActiveExporters(initialStats.active_exporters);
+            }
+
+            initAlertsTable(historicalData);
+
+            historicalData.forEach(alert => {
+                try { 
+                    incrementTotalAlerts(); 
+                } catch (e) { 
+                    console.error('Failed to seed total alerts metric:', e); 
+                }
+                
+                try {
+                    const severity = alert.severity?.toUpperCase();
+                    if (severity === 'CRITICAL' || severity === 'HIGH') incrementCriticalAlerts();
+                } catch (e) { 
+                    console.error('Failed to seed critical alerts metric:', e); 
+                }
+                
+                try {
+                    const program = alert.source_events?.[0]?.program;
+                    if (program) updateLogTypeVolume(program);
+                } catch (e) { 
+                    console.error('Failed to seed log type volume chart:', e); 
+                }
+                
+                try {
+                    if (alert.timestamp) addEventToTimeline(alert.timestamp);
+                } catch (e) { 
+                    console.error('Failed to seed event timeline chart:', e); 
+                }
+                
+                try {
+                    const ip = alert.source_events?.[0]?.decoded?.src_ip;
+                    if (alert.lat && alert.lon) addAttackerLocation(alert.lat, alert.lon, ip);
+                } catch (e) { 
+                    console.error('Failed to seed attacker map coordinates:', e); 
+                }
+            });
+        } catch (err) {
+            console.error("Failed to seed initial dashboard dataset:", err);
+        }
+    }
+
+    seedDashboardData();
+
+    const timeDropdown = document.querySelector('.select-time-preset');
+    if (timeDropdown) {
+        timeDropdown.onchange = () => {
+            initStats(); // Reset text values to 0 before loading the new timeframe
+            seedDashboardData();
+        };
+    }
+
+    const refreshBtn = document.getElementById('dashboard-refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.onclick = () => {
+            initStats(); // Reset text values to 0 before executing refresh
+            seedDashboardData();
+        };
+    }
+
+    if (activeStreamDisconnect) {
+        activeStreamDisconnect();
+    }
+    activeStreamDisconnect = connectDashboardWebSocket(handleAlertMetrics, handleSystemMetrics);
 
     return () => {
-        isForceClosed = true;
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        if (socket) {
-            socket.close();
-            socket = null;
+        if (activeStreamDisconnect) {
+            activeStreamDisconnect();
+            activeStreamDisconnect = null;
         }
     };
 }
@@ -129,41 +194,4 @@ function handleSystemMetrics(envelope) {
         default:
             console.debug('Unhandled message wrapper structure:', envelope);
     }
-}
-
-function connectDashboardWebSocket() {
-    if (isForceClosed) return;
-
-    const apiBaseUrl = API_CONFIG.API_BASE_URL;
-    const wsUrl = apiBaseUrl.replace(/^http/, 'ws') + '/ws/events';
-    
-    socket = new WebSocket(wsUrl);
-
-    socket.onmessage = (event) => {
-        try {
-            const envelope = JSON.parse(event.data);
-            const isAlert = envelope.rule_id || envelope.type?.toUpperCase() === 'ALERT';
-
-            if (isAlert) {
-                const alertData = envelope.rule_id ? envelope : envelope.data;
-                handleAlertMetrics(alertData);
-                return;
-            }
-
-            handleSystemMetrics(envelope);
-        } catch (err) {
-            console.error('Error parsing stream packet:', err);
-        }
-    };
-
-    socket.onclose = () => {
-        if (isForceClosed) return;
-        console.warn('Stream disconnected. Reconnecting in 5 seconds...');
-        reconnectTimeout = setTimeout(connectDashboardWebSocket, 5000);
-    };
-
-    socket.onerror = (error) => {
-        console.error('Stream network failure:', error);
-        socket.close();
-    };
 }

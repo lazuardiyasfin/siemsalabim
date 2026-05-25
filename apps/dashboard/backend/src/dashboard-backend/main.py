@@ -141,11 +141,12 @@ async def health() -> dict[str, str]:
 
 @app.get("/stats")
 async def stats(request: Request) -> dict:
-    """Dashboard statistics."""
+    """Dashboard statistics reflecting synchronized live state metrics."""
     state = request.app.state.live_state
     return {
         "connected_frontends": len(state.connected_frontends),
         "engine_connected": engine_client.connected if engine_client else False,
+        "active_exporters": state.active_exporters_count,
     }
 
 
@@ -228,38 +229,39 @@ async def get_current_user(request: Request) -> dict:
 @app.get("/api/alerts")
 async def get_historical_alerts(
     request: Request,
+    response: Response,
     _user: Annotated[dict, Depends(get_current_user)],
-    limit: int = 100,
+    range: str = "1h",
     severity: str | None = None,
 ) -> list[dict]:
-    """Securely proxies historical alert data queries to the upstream engine."""
-    cfg = request.app.state.config
+    """Securely proxies and geo-enriches historical alert data queries."""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
 
-    # Derives the HTTP URL schema from the config
+    cfg = request.app.state.config
     parsed_url = urlparse(cfg.engine_url)
     scheme = "https" if parsed_url.scheme == "wss" else "http"
     target_url = f"{scheme}://{parsed_url.netloc}/api/alerts"
 
-    params: dict[str, Any] = {"limit": limit}
+    params: dict[str, Any] = {"range": range}
     if severity:
         params["severity"] = severity
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(target_url, params=params, timeout=5.0)
-            if response.status_code != 200:
-                logger.error(
-                    f"Engine response failed with status code: {response.status_code}"
-                )
+            upstream_response = await client.get(target_url, params=params, timeout=5.0)
+            if upstream_response.status_code != 200:
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Invalid data state signature received from upstream service.",
                 )
-            return response.json()
-        except httpx.RequestError as exc:
-            logger.error(
-                f"Failed to communicate with engine sub-context at {exc.request.url}: {exc}"
-            )
+
+            historical_alerts = upstream_response.json()
+
+            return [enrich_geoip(alert) for alert in historical_alerts]
+
+        except httpx.RequestError:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Upstream log orchestration interface is temporarily unreachable.",
