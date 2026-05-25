@@ -141,11 +141,12 @@ async def health() -> dict[str, str]:
 
 @app.get("/stats")
 async def stats(request: Request) -> dict:
-    """Dashboard statistics."""
+    """Dashboard statistics reflecting synchronized live state metrics."""
     state = request.app.state.live_state
     return {
         "connected_frontends": len(state.connected_frontends),
         "engine_connected": engine_client.connected if engine_client else False,
+        "active_exporters": state.active_exporters_count,
     }
 
 
