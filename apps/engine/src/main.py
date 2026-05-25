@@ -1,16 +1,18 @@
 import json
-import aiosqlite
 import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+import aiosqlite
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field
 
 from .broadcaster import EventBroadcaster
 from .config import EngineConfig
-from .database import init_db, get_db
+from .database import get_db, init_db
+from .exporter_manager import ExporterManager
 from .ingest import ingest_handler
 from .parser import init_parser
 from .parser.decoders import reload_decoders
@@ -28,6 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 broadcaster = EventBroadcaster()
+exporter_mgr = ExporterManager()
 
 rules_dir = Path(__file__).parent.parent / "rules"
 decoders_dir = Path(__file__).parent.parent / "decoders"
@@ -43,12 +46,32 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("Database verification and table creation complete.")
     except Exception as e:
-        logger.error(f"Critical error during database initialization: {e}")
-        raise e
+        logger.error("Critical error during database initialization: %s", e)
+        raise
     yield
 
 
 app = FastAPI(title="siemsalabim-engine", version="0.1.0", lifespan=lifespan)
+
+
+# ---- Request/response models ----
+
+
+class AddLogPathRequest(BaseModel):
+    """Request body for adding a log path."""
+
+    exporter_id: str = Field(description="Target exporter to add the path to.")
+    path: str = Field(description="Log file path to watch.")
+
+
+class AddLogPathResponse(BaseModel):
+    """Response for add log path."""
+
+    status: str
+    message: str
+
+
+# ---- HTTP endpoints ----
 
 
 @app.get("/health")
@@ -79,23 +102,31 @@ async def reload_decoders_endpoint() -> dict[str, object]:
     return {"status": "ok", "decoders_loaded": count}
 
 
-@app.websocket("/ws/ingest")
-async def ws_ingest(websocket: WebSocket) -> None:
-    """WebSocket endpoint for log ingestion from exporters."""
-    await ingest_handler(websocket, config, rule_engine, broadcaster)
+@app.get("/api/log-paths")
+async def get_log_paths() -> dict[str, object]:
+    """List connected exporters."""
+    return {
+        "status": "ok",
+        "exporters": exporter_mgr.get_exporter_ids(),
+    }
 
 
-@app.websocket("/ws/dashboard")
-async def ws_dashboard(websocket: WebSocket) -> None:
-    """WebSocket endpoint for dashboards to receive real-time events."""
-    await broadcaster.connect(websocket)
-    logger.info("Dashboard subscribed to events")
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        broadcaster.disconnect(websocket)
-        logger.info("Dashboard unsubscribed from events")
+@app.post("/api/log-paths")
+async def add_log_path(request: AddLogPathRequest) -> AddLogPathResponse:
+    """Send add_path command to a connected exporter."""
+    command = {"type": "add_path", "path": request.path}
+    sent = await exporter_mgr.send_command(request.exporter_id, command)
+
+    if sent:
+        return AddLogPathResponse(
+            status="ok",
+            message=f"Path '{request.path}' sent to exporter '{request.exporter_id}'.",
+        )
+
+    return AddLogPathResponse(
+        status="error",
+        message=f"Exporter '{request.exporter_id}' not connected.",
+    )
 
 
 @app.get("/api/alerts")
@@ -105,7 +136,6 @@ async def get_historical_alerts(
     severity: str | None = None,
 ) -> list[dict]:
     """Exposes structured historical alert logs filtered by relative time ranges."""
-
     range_mapping = {
         "1h": "-1 hours",
         "24h": "-24 hours",
@@ -145,6 +175,28 @@ async def get_historical_alerts(
         }
         for row in rows
     ]
+
+
+# ---- WebSocket endpoints ----
+
+
+@app.websocket("/ws/ingest")
+async def ws_ingest(websocket: WebSocket) -> None:
+    """WebSocket endpoint for log ingestion from exporters."""
+    await ingest_handler(websocket, config, rule_engine, broadcaster, exporter_mgr)
+
+
+@app.websocket("/ws/dashboard")
+async def ws_dashboard(websocket: WebSocket) -> None:
+    """WebSocket endpoint for dashboards to receive real-time events."""
+    await broadcaster.connect(websocket)
+    logger.info("Dashboard subscribed to events")
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        broadcaster.disconnect(websocket)
+        logger.info("Dashboard unsubscribed from events")
 
 
 if __name__ == "__main__":
