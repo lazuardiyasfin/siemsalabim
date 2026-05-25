@@ -7,6 +7,8 @@ rules:
     conditions:
       - field: decoded.status
         value: "400"
+    notifications:
+      discord: true
 
   - id: nginx_scanner_404
     name: Vulnerability Scanner Detected

@@ -1,4 +1,7 @@
 import logging
+import asyncio
+import json
+import urllib.request
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -15,6 +18,24 @@ logger = logging.getLogger(__name__)
 
 CLOSE_AUTH_FAIL = 1008
 CLOSE_MALFORMED = 1003
+
+
+def _send_discord_sync(url: str, payload: dict) -> None:
+    """Sync function to push webhook using stdlib."""
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "SIEM-Engine/1.0",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        logger.info("Successfully fired Discord webhook!")
+    except Exception as e:
+        logger.error("Discord webhook failed: %s", e)
 
 
 async def verify_token(websocket: WebSocket, config: EngineConfig) -> bool:
@@ -56,6 +77,7 @@ async def _process_message(
     data: dict[str, object],
     rule_engine: RuleEngine,
     broadcaster: EventBroadcaster | None,
+    config: EngineConfig,
 ) -> None:
     """Parse a raw message, evaluate rules, and broadcast."""
     raw_log = RawLog(**data)
@@ -69,6 +91,35 @@ async def _process_message(
 
     if alerts:
         _log_alerts(alerts, event.decoded)
+        for alert in alerts:
+            alert_data = alert.model_dump(mode="json")
+            notifications = alert_data.get("notifications", {})
+            logger.info(
+                f"DEBUG ALERT: Rule={alert.rule_name} | Notifications={notifications} | URL={config.discord_webhook_url}"
+            )
+            if notifications.get("discord") and config.discord_webhook_url:
+                source = (
+                    event.decoded.get("src_ip")
+                    or event.decoded.get("client_ip")
+                    or "Unknown Host"
+                )
+                emoji = (
+                    "🔴"
+                    if alert.severity == "critical"
+                    else "🟠"
+                    if alert.severity == "high"
+                    else "🟡"
+                )
+
+                payload = {
+                    "content": f"{emoji} **{alert.severity.upper()}** - {alert.rule_name} by `{source}`\n> {alert.description}"
+                }
+
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        _send_discord_sync, config.discord_webhook_url, payload
+                    )
+                )
         if broadcaster:
             for alert in alerts:
                 await broadcaster.broadcast(
@@ -114,7 +165,7 @@ async def ingest_handler(
                     if exporter_id and exporter_mgr:
                         exporter_mgr.register(exporter_id, websocket)
 
-                await _process_message(data, rule_engine, broadcaster)
+                await _process_message(data, rule_engine, broadcaster, config)
             except Exception as exc:
                 logger.warning("Malformed message from %s: %s", client, exc)
                 await websocket.close(code=CLOSE_MALFORMED, reason="Malformed payload")

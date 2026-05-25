@@ -273,7 +273,8 @@ pipeline {
                                             extraVars: [
                                                 dashboard_password_hash: [value: deployEnv['DASHBOARD_PASSWORD_HASH'], hidden: true],
                                                 dashboard_jwt_secret_key: [value: deployEnv['DASHBOARD_JWT_SECRET_KEY'], hidden: true],
-                                                siem_ingest_token: [value: deployEnv['INGEST_TOKEN'], hidden: true]
+                                                siem_ingest_token: [value: deployEnv['INGEST_TOKEN'], hidden: true],
+                                                discord_webhook_url: [value: deployEnv['DISCORD_WEBHOOK_URL'], hidden: true]
                                             ]
                         }
                     }

@@ -12,3 +12,7 @@ class EngineConfig(BaseSettings):
         default="INFO",
         description="Python logging level.",
     )
+    discord_webhook_url: str | None = Field(
+        default=None,
+        description="Discord Webhook URL for alerting.",
+    )

@@ -46,6 +46,7 @@ class Rule(BaseModel):
         default=None,
         description="If set, rule is frequency-based (requires N events in window).",
     )
+    notifications: dict[str, bool] = Field(default_factory=dict)
 
 
 class Alert(BaseModel):
@@ -65,3 +66,4 @@ class Alert(BaseModel):
         default_factory=list,
         description="The event(s) that triggered the alert.",
     )
+    notifications: dict[str, bool] = Field(default_factory=dict)

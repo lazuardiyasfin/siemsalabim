@@ -47,3 +47,4 @@ class Event(BaseModel):
     exporter_id: str = Field(default="")
     source_host: str = Field(default="")
     source_path: str = Field(default="")
+    notifications: dict[str, bool] = Field(default_factory=dict)

@@ -31,6 +31,8 @@ rules:
       count: 5
       window_seconds: 120
       group_by: decoded.src_ip
+    notifications:
+      discord: true
 
   - id: ssh_accepted_login
     name: SSH Successful Login

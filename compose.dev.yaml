@@ -24,6 +24,7 @@ services:
       - "8000:8000"
     environment:
       - SIEM_INGEST_TOKEN=${INGEST_TOKEN}
+      - SIEM_DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
     volumes:
       - ./data:/app/apps/engine/data
 

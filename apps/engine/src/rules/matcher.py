@@ -121,6 +121,7 @@ class RuleMatcher:
             description=description,
             event_count=event_count,
             source_events=[event.model_dump()],
+            notifications=rule.notifications,
         )
 
     @staticmethod
