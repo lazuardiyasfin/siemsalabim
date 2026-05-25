@@ -111,28 +111,10 @@ async def get_log_paths() -> dict[str, object]:
     }
 
 
-@app.post("/api/log-paths")
-async def add_log_path(request: AddLogPathRequest) -> AddLogPathResponse:
-    """Send add_path command to a connected exporter."""
-    command = {"type": "add_path", "path": request.path}
-    sent = await exporter_mgr.send_command(request.exporter_id, command)
-
-    if sent:
-        return AddLogPathResponse(
-            status="ok",
-            message=f"Path '{request.path}' sent to exporter '{request.exporter_id}'.",
-        )
-
-    return AddLogPathResponse(
-        status="error",
-        message=f"Exporter '{request.exporter_id}' not connected.",
-    )
-
-
 @app.get("/api/alerts")
 async def get_historical_alerts(
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
-    limit: int = 100,
+    range: str = "1h",
     severity: str | None = None,
 ) -> list[dict]:
     """Exposes structured historical alert logs filtered by relative time ranges."""
@@ -146,12 +128,18 @@ async def get_historical_alerts(
 
     if severity:
         query = (
-            "SELECT * FROM alerts WHERE severity = ? ORDER BY timestamp DESC LIMIT ?;"
+            "SELECT * FROM alerts "
+            "WHERE timestamp >= datetime('now', ?) AND severity = ? "
+            "ORDER BY timestamp DESC;"
         )
-        params = (severity.upper(), limit)
+        params = (time_modifier, severity.upper())
     else:
-        query = "SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?;"
-        params = (limit,)
+        query = (
+            "SELECT * FROM alerts "
+            "WHERE timestamp >= datetime('now', ?) "
+            "ORDER BY timestamp DESC;"
+        )
+        params = (time_modifier,)
 
     async with db.execute(query, params) as cursor:
         rows = await cursor.fetchall()
