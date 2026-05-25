@@ -6,7 +6,6 @@ let closeDashboardStream = null;
 export const dashboardRoutes = [
     {
         path: '/',
-        title: 'Security Overview - Siemsalabim',
         render: () => renderAppLayout(renderDashboard()),
         init: () => {
             // Clear any existing active stream connection

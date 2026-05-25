@@ -111,24 +111,6 @@ async def get_log_paths() -> dict[str, object]:
     }
 
 
-@app.post("/api/log-paths")
-async def add_log_path(request: AddLogPathRequest) -> AddLogPathResponse:
-    """Send add_path command to a connected exporter."""
-    command = {"type": "add_path", "path": request.path}
-    sent = await exporter_mgr.send_command(request.exporter_id, command)
-
-    if sent:
-        return AddLogPathResponse(
-            status="ok",
-            message=f"Path '{request.path}' sent to exporter '{request.exporter_id}'.",
-        )
-
-    return AddLogPathResponse(
-        status="error",
-        message=f"Exporter '{request.exporter_id}' not connected.",
-    )
-
-
 @app.get("/api/alerts")
 async def get_historical_alerts(
     db: Annotated[aiosqlite.Connection, Depends(get_db)],

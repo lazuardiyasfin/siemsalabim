@@ -33,12 +33,6 @@ async function handleRouting() {
 
     currentRoute?.leave?.();
 
-    if (route.title) {
-        globalThis.document.title = route.title;
-    } else {
-        globalThis.document.title = 'Siemsalabim'; 
-    }
-
     appContainer.innerHTML = route.render();
 
     if (route.init) {
