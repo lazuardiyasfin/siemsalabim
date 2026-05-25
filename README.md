@@ -765,4 +765,4 @@ docker run -d \
 | uv Package Manager       | https://docs.astral.sh/uv/                                                |
 | MITRE ATT&CK Framework   | https://attack.mitre.org/                                                 |
 | AI Assistance — Claude   | https://claude.ai/                                                        |
-| AI Assistance — Claude   | https://gemini.google.com/                                                |
+| AI Assistance — Gemini   | https://gemini.google.com/                                                |
