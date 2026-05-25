@@ -117,3 +117,33 @@ class TestWebSocketIngest:
                     "received_at": "2026-05-20T04:03:50Z",
                 }
             )
+
+
+class TestReloadEndpoints:
+    """Tests for hot-reload endpoints."""
+
+    def test_reload_rules(self, client: TestClient) -> None:
+        """POST /rules/reload returns ok."""
+        response = client.post("/rules/reload")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "rules_loaded" in data
+
+    def test_reload_decoders(self, client: TestClient) -> None:
+        """POST /decoders/reload returns ok."""
+        response = client.post("/decoders/reload")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "decoders_loaded" in data
+
+    def test_stats_endpoint(self, client: TestClient) -> None:
+        """GET /stats returns dashboard count."""
+        response = client.get("/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "active_dashboards" in data
