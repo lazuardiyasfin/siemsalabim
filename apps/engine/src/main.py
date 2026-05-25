@@ -132,7 +132,7 @@ async def add_log_path(request: AddLogPathRequest) -> AddLogPathResponse:
 @app.get("/api/alerts")
 async def get_historical_alerts(
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
-    range: str = "1h",
+    limit: int = 100,
     severity: str | None = None,
 ) -> list[dict]:
     """Exposes structured historical alert logs filtered by relative time ranges."""
@@ -146,18 +146,12 @@ async def get_historical_alerts(
 
     if severity:
         query = (
-            "SELECT * FROM alerts "
-            "WHERE timestamp >= datetime('now', ?) AND severity = ? "
-            "ORDER BY timestamp DESC;"
+            "SELECT * FROM alerts WHERE severity = ? ORDER BY timestamp DESC LIMIT ?;"
         )
-        params = (time_modifier, severity.upper())
+        params = (severity.upper(), limit)
     else:
-        query = (
-            "SELECT * FROM alerts "
-            "WHERE timestamp >= datetime('now', ?) "
-            "ORDER BY timestamp DESC;"
-        )
-        params = (time_modifier,)
+        query = "SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?;"
+        params = (limit,)
 
     async with db.execute(query, params) as cursor:
         rows = await cursor.fetchall()

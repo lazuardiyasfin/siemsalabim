@@ -5,7 +5,6 @@ import { navigateTo } from "../router";
 export const authRoutes = [
     {
         path: '/login',
-        title: 'Login - Siemsalabim',
         render: () => renderAuthLayout(renderLogin()),
         init: () => initLogin(() => {
             navigateTo('/');
